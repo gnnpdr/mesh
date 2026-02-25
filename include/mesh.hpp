@@ -1,6 +1,5 @@
 #pragma once
-#include "vec3.hpp"
-#include <vector>
+#include "obj_parser.hpp"
 #include <array>
 
 namespace Mesh
@@ -18,6 +17,49 @@ public:
 
     Mesh() = default;
     Mesh(const std::vector<Vertice>& vertices, const std::vector<std::array<VerticeInd, 3>>& triangles) : vertices_(vertices), triangles_(triangles) {}
+    Mesh(const OBJParser::OBJParser& parser)
+    {
+        auto& parser_vertices = parser.get_vertices();
+        auto& parser_faces = parser.get_faces();
+
+        for (const auto& v : parser_vertices)
+        {
+            vertices_.push_back(v);
+        }
+
+        for (const auto& f : parser_faces)
+        {
+            //вот здесь уже проходит триангуляция
+            for (size_t i = 1; i + 1 < f.size(); i++) 
+            {
+               add_triangle(f[0], f[i], f[i + 1]);
+            }
+        }
+    }
+
+    const std::vector<Vertice>& get_vertices() const { return vertices_; }
+    const std::vector<Triangle>& get_triangles() const { return triangles_; }
+    
+    size_t get_vert_amt() const { return vertices_.size(); }
+    size_t get_triang_amt() const { return triangles_.size(); }
+
+    void print()
+    {
+        std::cout << "vertices" << std::endl;
+        for (auto v : vertices_)
+        {
+            std::cout << v.x() << " " << v.y() << " " << v.z() << std::endl; 
+        }
+
+        std::cout << "triangles" << std::endl;
+
+        for (auto& t : triangles_)
+        {
+            std::cout << t[0] << " " << t[1] << " " << t[2] << std::endl; 
+        }
+    }
+
+private:
 
     void add_vertice(Vertice& v)
     {
@@ -48,11 +90,5 @@ public:
 
         add_triangle(v1, v2, v3);
     }
-
-    const std::vector<Vertice>& get_vertices() const { return vertices_; }
-    const std::vector<Triangle>& get_triangles() const { return triangles_; }
-    
-    size_t get_vert_amt() const { return vertices_.size(); }
-    size_t get_triang_amt() const { return triangles_.size(); }
 };
 }
