@@ -19,11 +19,11 @@ namespace Detail
 
 class OBJParser 
 {
-    using Vertice = Vec3::Vec3f;
-    using VerticeInd = size_t;
-    using Face = std::vector<VerticeInd>;
+    using Vertex = Vec3::Vec3f;
+    using VertexInd = size_t;
+    using Face = std::vector<VertexInd>;
 
-    std::vector<Vertice> vertices_;
+    std::vector<Vertex> vertices_;
     std::vector<Face> faces_;
     
 public:
@@ -33,7 +33,7 @@ public:
         parse(filename);
     }
 
-    const std::vector<Vertice>& get_vertices() const {return vertices_;}
+    const std::vector<Vertex>& get_vertices() const {return vertices_;}
     const std::vector<Face>& get_faces() const {return faces_;}
 
     void parse(const std::string& filename) 
@@ -53,7 +53,7 @@ public:
             {
                 float x, y, z;
                 iss >> x >> y >> z;
-                Vertice v(x, y, z);
+                Vertex v(x, y, z);
                 vertices_.push_back(v);
             }
             else if (type == Detail::FACE_SIGN) 

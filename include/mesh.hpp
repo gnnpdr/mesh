@@ -6,17 +6,17 @@ namespace Mesh
 {
 class Mesh
 {
-    using Vertice = Vec3::Vec3f;
-    using VerticeInd = size_t;
-    using Triangle = std::array<VerticeInd, 3>;
+    using Vertex = Vec3::Vec3f;
+    using VertexInd = size_t;
+    using Triangle = std::array<VertexInd, 3>;
 
-    std::vector<Vertice> vertices_;
+    std::vector<Vertex> vertices_;
     std::vector<Triangle> triangles_;
 
 public:
 
     Mesh() = default;
-    Mesh(const std::vector<Vertice>& vertices, const std::vector<std::array<VerticeInd, 3>>& triangles) : vertices_(vertices), triangles_(triangles) {}
+    Mesh(const std::vector<Vertex>& vertices, const std::vector<std::array<VertexInd, 3>>& triangles) : vertices_(vertices), triangles_(triangles) {}
     Mesh(const OBJParser::OBJParser& parser)
     {
         auto& parser_vertices = parser.get_vertices();
@@ -37,7 +37,7 @@ public:
         }
     }
 
-    const std::vector<Vertice>& get_vertices() const { return vertices_; }
+    const std::vector<Vertex>& get_vertices() const { return vertices_; }
     const std::vector<Triangle>& get_triangles() const { return triangles_; }
     
     size_t get_vert_amt() const { return vertices_.size(); }
@@ -61,7 +61,7 @@ public:
 
 private:
 
-    void add_vertice(Vertice& v)
+    void add_vertice(Vertex& v)
     {
         vertices_.push_back(v);
     }
@@ -84,9 +84,9 @@ private:
 
     void add_triangle(const Triangle& t)
     {
-        VerticeInd v1 = t.at(0);
-        VerticeInd v2 = t.at(1);
-        VerticeInd v3 = t.at(2);
+        VertexInd v1 = t.at(0);
+        VertexInd v2 = t.at(1);
+        VertexInd v3 = t.at(2);
 
         add_triangle(v1, v2, v3);
     }
