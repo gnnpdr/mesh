@@ -47,28 +47,24 @@ public:
     }
 };
 
-namespace Detail
-{
-    float DETAIL_LEVEL = 0.5;
-}
-
 class VertexCluster
 {
     Mesh::Mesh input_mesh_;
 
-    std::map<CellPos, CellData> cells_;
-    std::vector<size_t> old_to_new_cells_;
-
-    std::map<CellPos, size_t> cell_to_new_ind_;
-    std::vector<Vec3::Vec3f> new_vertices_;
-
-    std::vector<std::array<size_t, 3>> new_faces_;
-
     Vec3::Vec3f min_bound_;
     Vec3::Vec3f max_bound_;
-
+    
     float cell_size_;
+    float detail_level_ = 0.02;
 
+    std::map<CellPos, CellData> cells_;
+    std::map<CellPos, size_t> cell_to_new_ind_;
+
+    std::vector<size_t> old_to_new_v_;
+
+    std::vector<Vec3::Vec3f> new_vertices_;
+    std::vector<std::array<size_t, 3>> new_faces_;
+    
 public:
 
     VertexCluster(const Mesh::Mesh& mesh) : input_mesh_(mesh)
@@ -76,10 +72,21 @@ public:
         find_bounds(mesh);
 
         float max_model_size = std::max({max_bound_.x() - min_bound_.x(), max_bound_.y() - min_bound_.y(), max_bound_.z() - min_bound_.z()});
-        cell_size_ = max_model_size * Detail::DETAIL_LEVEL;
+        cell_size_ = max_model_size * detail_level_;
 
         size_t vertices_amt = input_mesh_.get_vertices().size();
-        old_to_new_cells_.resize(vertices_amt);
+        old_to_new_v_.resize(vertices_amt);
+    } 
+
+    VertexCluster(const Mesh::Mesh& mesh, float detail_level) : input_mesh_(mesh), detail_level_(detail_level)
+    {
+        find_bounds(mesh);
+
+        float max_model_size = std::max({max_bound_.x() - min_bound_.x(), max_bound_.y() - min_bound_.y(), max_bound_.z() - min_bound_.z()});
+        cell_size_ = max_model_size * detail_level_;
+
+        size_t vertices_amt = input_mesh_.get_vertices().size();
+        old_to_new_v_.resize(vertices_amt);
     } 
 
     Mesh::Mesh simplify() 
@@ -122,9 +129,6 @@ private:
 
         min_bound_ = Vec3::Vec3f(min_x, min_y, min_z);
         max_bound_ = Vec3::Vec3f(max_x, max_y, max_z);
-
-        std::cout << "Bounds: min(" << min_x << "," << min_y << "," << min_z 
-              << ") max(" << max_x << "," << max_y << "," << max_z << ")\n";
     }
 
     CellPos get_cell_pos(const Vec3::Vec3f& v) 
@@ -136,10 +140,10 @@ private:
     {
         auto& vertices = input_mesh_.get_vertices();
         size_t vertices_amt = vertices.size();
-        for (size_t i = 0; i < vertices_amt; i++) 
+        for (size_t v = 0; v < vertices_amt; v++) 
         {
-            CellPos cell_pos = get_cell_pos(vertices[i]);
-            cells_[cell_pos].add(vertices[i]);
+            CellPos cell_pos = get_cell_pos(vertices[v]);
+            cells_[cell_pos].add(vertices[v]);
         }
     }
 
@@ -160,7 +164,7 @@ private:
         for (size_t v = 0; v < vertices_amt; v++) 
         {
             CellPos cell_pos = get_cell_pos(vertices[v]);
-            old_to_new_cells_[v] = cell_to_new_ind_[cell_pos];
+            old_to_new_v_[v] = cell_to_new_ind_[cell_pos];
         }
     }
 
@@ -171,11 +175,10 @@ private:
         
         for (const auto& face : faces) 
         {
-            size_t v0 = old_to_new_cells_[face[0]];
-            size_t v1 = old_to_new_cells_[face[1]];
-            size_t v2 = old_to_new_cells_[face[2]];
+            size_t v0 = old_to_new_v_[face[0]];
+            size_t v1 = old_to_new_v_[face[1]];
+            size_t v2 = old_to_new_v_[face[2]];
             
-            //проверяем, в порядке ли треугольник
             if (v0 != v1 && v1 != v2 && v0 != v2) 
                 new_faces_.push_back({v0, v1, v2});
             else
