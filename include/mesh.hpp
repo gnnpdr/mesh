@@ -1,14 +1,22 @@
 #pragma once
 #include "obj_parser.hpp"
 #include <array>
+#include <set>
+#include <map>
 
 namespace Mesh
 {
+
+using Vertex = Vec3::Vec3f;
+using VertexInd = size_t;
+using TriangleInd = size_t;
+using Triangle = std::array<VertexInd, 3>;
+using EdgeInd = size_t;
+
+
 class Mesh
 {
-    using Vertex = Vec3::Vec3f;
-    using VertexInd = size_t;
-    using Triangle = std::array<VertexInd, 3>;
+protected:
 
     std::vector<Vertex> vertices_;
     std::vector<Triangle> triangles_;
@@ -43,7 +51,7 @@ public:
     size_t get_vert_amt() const { return vertices_.size(); }
     size_t get_triang_amt() const { return triangles_.size(); }
 
-    void print()
+    virtual void print()
     {
         std::cout << "vertices" << std::endl;
         for (auto v : vertices_)
@@ -58,6 +66,8 @@ public:
             std::cout << t[0] << " " << t[1] << " " << t[2] << std::endl; 
         }
     }
+
+    virtual ~Mesh() = default;
 
 private:
 
@@ -91,4 +101,171 @@ private:
         add_triangle(v1, v2, v3);
     }
 };
+
+struct VertexData
+{
+    std::set<VertexInd> neighbor_vertices_;     //мы избегаем копирование соседей, потому что проходя по треугольникам нам может много раз попасться одна вершина, используем сет
+    std::vector<TriangleInd> incident_triangles_; //с треугольниками не так, они индивидуальны, достаточно вектора
+    bool is_active = true;
+};
+
+struct Edge
+{
+    VertexInd v1_, v2_;
+    TriangleInd t1_ = -1;
+    TriangleInd t2_ = -1;
+    float cost_;
+    bool is_active = true;
+
+    Edge(VertexInd v1, VertexInd v2, TriangleInd t1, float cost) : v1_(v1), v2_(v2), t1_(t1), cost_(cost) {}
+};
+
+class EdgeMesh : public Mesh
+{
+    std::vector<VertexData> vertex_data_;
+    std::vector<Edge> edges_;
+
+public:
+
+    EdgeMesh() = default;
+
+    explicit EdgeMesh(const Mesh&  base_mesh) : Mesh(base_mesh)
+    {
+        build_data(vertices_, triangles_);
+    }
+
+    explicit EdgeMesh(Mesh&& base_mesh) : Mesh(std::move(base_mesh))
+    {
+        build_data(vertices_, triangles_);
+    }
+
+    EdgeMesh(const std::vector<Vertex>& vertices, const std::vector<std::array<VertexInd, 3>>& triangles) : Mesh()
+    {
+        vertices_ = std::move(vertices);
+        triangles_ = std::move(triangles);
+        build_data(vertices, triangles);
+    }
+
+    EdgeMesh(const OBJParser::OBJParser& parser) : Mesh(parser)
+    {
+        build_data(vertices_, triangles_);
+    }
+
+    ~EdgeMesh() = default;
+
+    void print() override
+    {
+        std::cout << "vertices" << std::endl;
+        for (auto v : vertices_)
+        {
+            std::cout << v.x() << " " << v.y() << " " << v.z() << std::endl; 
+        }
+
+        std::cout << "triangles" << std::endl;
+
+        for (const auto& t : triangles_)
+        {
+            std::cout << t[0] << " " << t[1] << " " << t[2] << std::endl; 
+        }
+
+        std::cout << "vertices data" << std::endl;
+
+        for (auto& vd : vertex_data_)
+        {
+            std::cout << "neighbor vertices" << std::endl;
+            const auto& nv = vd.neighbor_vertices_;
+            for (const auto v : nv)
+            {
+                std::cout << v << " ";
+            }
+            std::cout << std::endl;
+
+            std::cout << "incident triangles" << std::endl;
+            const auto& it = vd.incident_triangles_;
+            for (const auto t : it)
+            {
+                std::cout << t << " ";
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << "edges" << std::endl;
+
+        for (const auto& e : edges_)
+        {
+            std::cout << "v1 " << e.v1_ << " v2 " << e.v2_ << " t1 " << e.t1_ << " t2 " << e.t2_ << " cost " << e.cost_ << std::endl;
+        }
+    }
+
+private:
+
+    void collect_vertices_data(const std::vector<Vertex>& base_vertices, const std::vector<std::array<VertexInd, 3>>& base_triangles)
+    {
+        size_t v_amt = base_vertices.size();
+        vertex_data_.resize(v_amt);
+
+        size_t t_amt = base_triangles.size();
+        for (size_t t_ind = 0; t_ind < t_amt; t_ind++)
+        {
+            const auto& t = base_triangles[t_ind];
+            for (size_t v = 0; v < 3; v++)
+            {
+                size_t v_ind = t[v];
+                vertex_data_[v_ind].incident_triangles_.push_back(t_ind);
+
+                size_t next_v = t[(v + 1) % 3];
+                size_t prev_v = t[(v + 2) % 3];
+                vertex_data_[v_ind].neighbor_vertices_.insert(next_v);
+                vertex_data_[v_ind].neighbor_vertices_.insert(prev_v);
+            }
+        }
+    }
+
+    void collect_edges(const std::vector<std::array<VertexInd, 3>>& base_triangles)
+    {
+        size_t t_amt = base_triangles.size();
+        std::map<std::pair<VertexInd, VertexInd>, EdgeInd> edge_map;
+        for (size_t t_ind = 0; t_ind < t_amt; t_ind++)
+        {
+            const auto& t = base_triangles[t_ind];
+            add_edge(t[0], t[1], t_ind, edge_map);
+            add_edge(t[1], t[2], t_ind, edge_map);
+            add_edge(t[2], t[0], t_ind, edge_map);
+        }
+    }
+
+    void add_edge(VertexInd v1, VertexInd v2, TriangleInd t_ind, std::map<std::pair<VertexInd, VertexInd>, EdgeInd>& edge_map)
+    {
+        if (v1 > v2)
+            std::swap(v1, v2);
+
+        auto edge = edge_map.find({v1, v2});
+        if (edge == edge_map.end())
+        {
+            float cost = count_edge_cost(v1, v2);
+            Edge new_edge(v1, v2, t_ind, cost);
+            edges_.push_back(new_edge);
+            edge_map[{v1, v2}] = edges_.size() - 1;    
+        }
+        else
+        {
+            edges_[edge->second].t2_ = t_ind;
+        }
+    }
+
+    void build_data(const std::vector<Vertex>& base_vertices, const std::vector<std::array<VertexInd, 3>>& base_triangles)
+    {
+        collect_vertices_data(base_vertices, base_triangles);
+        collect_edges(base_triangles);
+    }
+
+    float count_edge_cost(VertexInd v1, VertexInd v2) const
+    {
+        return Vec3::distance(vertices_[v1], vertices_[v2]);
+    }
+
+};
 }
+    
+/*  void collapseEdge(int edgeIndex);
+    void updateCostsAroundVertex(int vertexIndex);*/

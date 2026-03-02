@@ -11,14 +11,26 @@ int main(int argc, char* argv[])
 
     mesh.print();
 
-    float detail_level = std::stof(argv[2]);
-    VertexCluster::VertexCluster claster(mesh, detail_level);
-    Mesh::Mesh new_mesh = claster.simplify();
+    // float detail_level = std::stof(argv[2]);
+    // VertexCluster::VertexCluster claster(mesh, detail_level);
+    // Mesh::Mesh new_mesh = claster.simplify();
 
     //new_mesh.print();
 
-    MeshOBJConverter::MeshOBJConverter converter(new_mesh);
-    converter.convert();
+    // MeshOBJConverter::MeshOBJConverter converter(new_mesh);
+    // converter.convert();
+
+    Mesh::EdgeMesh mesh1(mesh);
+
+    mesh1.print();
+
+    Mesh::EdgeMesh mesh2(parser);
+
+    mesh2.print();
+
+    Mesh::EdgeMesh mesh3(mesh.get_vertices(), mesh.get_triangles());
+
+    mesh3.print();
 
     return 0;
 }
