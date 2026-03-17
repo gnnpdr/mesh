@@ -117,7 +117,7 @@ struct Edge
     float cost_;
     bool is_active = true;
 
-    Edge(VertexInd v1, VertexInd v2, TriangleInd t1, float cost) : v1_(v1), v2_(v2), t1_(t1), cost_(cost) {}
+    Edge(VertexInd v1, VertexInd v2, TriangleInd t1) : v1_(v1), v2_(v2), t1_(t1) {}
 };
 
 class EdgeMesh : public Mesh
@@ -193,7 +193,7 @@ public:
 
         for (const auto& e : edges_)
         {
-            std::cout << "v1 " << e.v1_ << " v2 " << e.v2_ << " t1 " << e.t1_ << " t2 " << e.t2_ << " cost " << e.cost_ << std::endl;
+            std::cout << "v1 " << e.v1_ << " v2 " << e.v2_ << " t1 " << e.t1_ << " t2 " << e.t2_ <<  std::endl;
         }
     }
 
@@ -242,8 +242,7 @@ private:
         auto edge = edge_map.find({v1, v2});
         if (edge == edge_map.end())
         {
-            float cost = count_edge_cost(v1, v2);
-            Edge new_edge(v1, v2, t_ind, cost);
+            Edge new_edge(v1, v2, t_ind);
             edges_.push_back(new_edge);
             edge_map[{v1, v2}] = edges_.size() - 1;    
         }
@@ -258,14 +257,5 @@ private:
         collect_vertices_data(base_vertices, base_triangles);
         collect_edges(base_triangles);
     }
-
-    float count_edge_cost(VertexInd v1, VertexInd v2) const
-    {
-        return Vec3::distance(vertices_[v1], vertices_[v2]);
-    }
-
 };
 }
-    
-/*  void collapseEdge(int edgeIndex);
-    void updateCostsAroundVertex(int vertexIndex);*/
