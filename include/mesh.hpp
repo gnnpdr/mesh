@@ -21,10 +21,16 @@ protected:
     std::vector<Vertex> vertices_;
     std::vector<Triangle> triangles_;
 
+    std::array<Vec3::Vec3f, 2> bounding_box_;
+
 public:
 
     Mesh() = default;
-    Mesh(const std::vector<Vertex>& vertices, const std::vector<std::array<VertexInd, 3>>& triangles) : vertices_(vertices), triangles_(triangles) {}
+    Mesh(const std::vector<Vertex>& vertices, const std::vector<std::array<VertexInd, 3>>& triangles) : vertices_(vertices), triangles_(triangles) 
+    {
+        bounding_box();
+    }
+
     Mesh(const OBJParser::OBJParser& parser)
     {
         auto& parser_vertices = parser.get_vertices();
@@ -43,6 +49,8 @@ public:
                add_triangle(f[0], f[i], f[i + 1]);
             }
         }
+
+        bounding_box();
     }
 
     const std::vector<Vertex>& get_vertices() const { return vertices_; }
@@ -51,7 +59,7 @@ public:
     size_t get_vert_amt() const { return vertices_.size(); }
     size_t get_triang_amt() const { return triangles_.size(); }
 
-    virtual void print()
+    virtual void print() const
     {
         std::cout << "vertices" << std::endl;
         for (auto v : vertices_)
@@ -67,9 +75,65 @@ public:
         }
     }
 
+    std::array<Vec3::Vec3f, 2> get_bounding_box() const 
+    {
+        return bounding_box_;
+    }
+
+    std::array<float, 3> get_bounding_box_size() const 
+    {
+        Vec3::Vec3f min_bound = bounding_box_[0];
+        Vec3::Vec3f max_bound = bounding_box_[1];
+
+        float x = max_bound.x() - min_bound.x();
+        float y = max_bound.y() - min_bound.y();
+        float z = max_bound.z() - min_bound.z();
+
+        return {x, y, z};
+    }
+
+    float get_bounding_box_diag_size() const
+    {
+        Vec3::Vec3f min_bound = bounding_box_[0];
+        Vec3::Vec3f max_bound = bounding_box_[1];
+
+        size_t x = max_bound.x() - min_bound.x();
+        size_t y = max_bound.y() - min_bound.y();
+        size_t z = max_bound.z() - min_bound.z();
+
+        return sqrt(x * x + y * y + z * z);
+    }
+
     virtual ~Mesh() = default;
 
 private:
+
+    void bounding_box()
+    {
+        if (vertices_.empty()) return;
+
+        float min_x = vertices_[0].x();
+        float min_y = vertices_[0].y();
+        float min_z = vertices_[0].z();
+
+        float max_x = vertices_[0].x();
+        float max_y = vertices_[0].y();
+        float max_z = vertices_[0].z();
+
+        for (const auto& v : vertices_) 
+        {
+            min_x = std::min(min_x, v.x());
+            min_y = std::min(min_y, v.y());
+            min_z = std::min(min_z, v.z());
+
+            max_x = std::max(max_x, v.x());
+            max_y = std::max(max_y, v.y());
+            max_z = std::max(max_z, v.z());
+        }
+
+        bounding_box_[0] = Vec3::Vec3f(min_x, min_y, min_z);
+        bounding_box_[1] = Vec3::Vec3f(max_x, max_y, max_z);
+    }
 
     void add_vertice(Vertex& v)
     {
@@ -153,7 +217,7 @@ public:
 
     ~EdgeMesh() = default;
 
-    void print() override
+    void print() const override
     {
         std::cout << "vertices" << std::endl;
         for (auto v : vertices_)
