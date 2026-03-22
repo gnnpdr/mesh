@@ -106,29 +106,9 @@ private:
 
     void find_bounds(const Mesh::Mesh& input_mesh)
     {
-        auto& vertices = input_mesh.get_vertices();
-        if (vertices.empty()) return;
-
-        float min_x = 0;
-        float min_y = 0;
-        float min_z = 0;
-
-        float max_x = 0;
-        float max_y = 0;
-        float max_z = 0;
-
-        for (const auto& v : vertices) 
-        {
-            min_x = std::min(min_x, v.x());
-            min_y = std::min(min_y, v.y());
-            min_z = std::min(min_z, v.z());
-            max_x = std::max(max_x, v.x());
-            max_y = std::max(max_y, v.y());
-            max_z = std::max(max_z, v.z());
-        }
-
-        min_bound_ = Vec3::Vec3f(min_x, min_y, min_z);
-        max_bound_ = Vec3::Vec3f(max_x, max_y, max_z);
+        std::array<Vec3::Vec3f, 2> bounding_box = input_mesh.get_bounding_box();
+        min_bound_ = bounding_box[0];
+        max_bound_ = bounding_box[1];
     }
 
     CellPos get_cell_pos(const Vec3::Vec3f& v) 
