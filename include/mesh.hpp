@@ -106,6 +106,26 @@ public:
 
     virtual ~Mesh() = default;
 
+    void set_vert(Vec3::Vec3f& vert, VertexInd ind)
+    {
+        vertices_[ind] = vert;
+    }
+
+    void set_triangle(Triangle& triangle, TriangleInd ind)
+    {
+        triangles_[ind] = triangle;
+    }
+
+    void set_triangle_vert(Vec3::Vec3f vert, TriangleInd ind, size_t vert_in_triangle_ind)
+    {
+        triangles_[ind][vert_in_triangle_ind] = vert;
+    }
+
+    void set_triangles(std::vector<Triangle>& triangles)
+    {
+        triangles_ = triangles;
+    }
+
 private:
 
     void bounding_box()
@@ -170,7 +190,7 @@ struct VertexData
 {
     std::set<VertexInd> neighbor_vertices_;     //мы избегаем копирование соседей, потому что проходя по треугольникам нам может много раз попасться одна вершина, используем сет
     std::vector<TriangleInd> incident_triangles_; //с треугольниками не так, они индивидуальны, достаточно вектора
-    bool is_active = true;
+    bool is_active_ = true;
 };
 
 struct Edge
@@ -178,8 +198,7 @@ struct Edge
     VertexInd v1_, v2_;
     TriangleInd t1_ = -1;
     TriangleInd t2_ = -1;
-    float cost_;
-    bool is_active = true;
+    bool is_active_ = true;
 
     Edge(VertexInd v1, VertexInd v2, TriangleInd t1) : v1_(v1), v2_(v2), t1_(t1) {}
 };
@@ -217,6 +236,16 @@ public:
 
     ~EdgeMesh() = default;
 
+    std::vector<VertexData>& get_vertex_data()
+    {
+        return vertex_data_;
+    }
+
+    std::vector<Edge>& get_edges()
+    {
+        return edges_;
+    }
+ 
     void print() const override
     {
         std::cout << "vertices" << std::endl;
@@ -259,6 +288,20 @@ public:
         {
             std::cout << "v1 " << e.v1_ << " v2 " << e.v2_ << " t1 " << e.t1_ << " t2 " << e.t2_ <<  std::endl;
         }
+    }
+
+    EdgeInd find_edge(VertexInd v1, VertexInd v2) 
+    {
+        if (v1 > v2) std::swap(v1, v2);
+
+        size_t edges_amt = edges_.size();
+        for (EdgeInd e = 0; e < edges_amt; e++) 
+        {
+            if (edges_[e].is_active && edges_[e].v1_ == v1 && edges_[e].v2_ == v2)
+                return e;
+        }
+        
+        return -1;
     }
 
 private:
