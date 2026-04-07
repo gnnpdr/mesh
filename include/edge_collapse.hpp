@@ -23,12 +23,19 @@ struct EdgePtr
     }
 };
 
+namespace Detail
+{
+    VertexInd ERROR_VAL = 999;
+    size_t MAX_TRIANGLES_AMT = 4;
+}
+
 class EdgeCollapse
 {
     EdgeMesh& mesh_;        //да, только edgemesh. создавать, передавать mesh и создавать его прям тут накладно. пусть это делают вне.
 
     std::priority_queue<EdgePtr> edge_heap_;
 
+    float detail_level_ = 0.5f;
     size_t final_triangles_amt_ = 400;
 
 public:
@@ -38,6 +45,11 @@ public:
     }
 
     EdgeCollapse(Mesh::EdgeMesh& mesh, size_t final_triangles_amt) : mesh_(mesh), final_triangles_amt_(final_triangles_amt)
+    {
+        build_heap();
+    }
+
+    EdgeCollapse(Mesh::EdgeMesh& mesh, float detail_level) : mesh_(mesh), detail_level_(detail_level), final_triangles_amt_(calc_final_triangles_amt())
     {
         build_heap();
     }
@@ -63,6 +75,19 @@ public:
 
 
 private:
+
+    size_t calc_final_triangles_amt()
+    {
+        size_t orig_triangles_amt = mesh_.get_triang_amt();
+        size_t final_triangles_amt = (size_t)(orig_triangles_amt * detail_level_);
+
+        if (final_triangles_amt < Detail::MAX_TRIANGLES_AMT)
+            final_triangles_amt = Detail::MAX_TRIANGLES_AMT;
+        if (final_triangles_amt > orig_triangles_amt)
+            final_triangles_amt = orig_triangles_amt;
+
+        return final_triangles_amt;
+    }
 
     float calc_edge_cost(EdgeInd e)
     {
@@ -112,7 +137,7 @@ private:
             
             return top;
         }
-        return {-1, 0.0f};
+        return {Detail::ERROR_VAL, 0.0f};
     }
 
     Vec3::Vec3f calc_new_pos(VertexInd v1, VertexInd v2)
@@ -121,11 +146,11 @@ private:
         return (vertices[v1] + vertices[v2]) * 0.5f;
     }
 
-    void collapse_edge(EdgeInd edge_idx) 
+    void collapse_edge(EdgeInd edge_ind) 
     {
         auto& vertices = mesh_.get_vertices();
         auto& triangles = mesh_.get_triangles();
-        Mesh::Edge& edge_to_remove = mesh_.get_edges()[edge_idx];
+        Mesh::Edge& edge_to_remove = mesh_.get_edges()[edge_ind];
 
         VertexInd vert_to_keep = edge_to_remove.v1_;
         VertexInd vert_to_remove = edge_to_remove.v2_;
@@ -142,7 +167,7 @@ private:
             {
                 if (triangle[i] == vert_to_remove)
                 {
-                    mesh_.set_triangle_vert(vertices[vert_to_keep], triangle_ind, i);
+                    mesh_.set_triangle_vert(vert_to_keep, triangle_ind, i);
                 }
             }
         }
@@ -186,20 +211,20 @@ private:
             if (triangle[0] == triangle[1] || triangle[1] == triangle[2] || triangle[2] == triangle[0])
                 continue;
 
-            TriangleInd new_idx = new_triangles.size();  // ← индекс в НОВОМ векторе
+            TriangleInd new_ind = new_triangles.size();  // ← индекс в НОВОМ векторе
             new_triangles.push_back(triangle);
 
             for (int i = 0; i < 3; i++)
-                mesh_.get_vertex_data()[triangle[i]].incident_triangles_.push_back(new_idx);
+                mesh_.get_vertex_data()[triangle[i]].incident_triangles_.push_back(new_ind);
         }
 
         mesh_.set_triangles(new_triangles);
     }
 
-    void update_edges_in_heap(EdgeInd collapsed_edge_idx) 
+    void update_edges_in_heap(EdgeInd collapsed_edge_ind) 
     {
         auto& edges = mesh_.get_edges();
-        const Mesh::Edge& collapsed_edge = edges[collapsed_edge_idx];
+        const Mesh::Edge& collapsed_edge = edges[collapsed_edge_ind];
         VertexInd v = collapsed_edge.v1_;
 
         const auto& neighbors = mesh_.get_vertex_data()[v].neighbor_vertices_;

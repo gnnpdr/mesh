@@ -13,8 +13,8 @@ namespace MeshViewer
 
 enum AlgorithmType
 {
-    VERTEX_CLUSTER//,
-    //EDGE_COLLAPSE,
+    VERTEX_CLUSTER,
+    EDGE_COLLAPSE//,
     //QUADRIC
 };
 
@@ -103,12 +103,14 @@ private:
                 result = simplifier.simplify();
                 break;
             }
-            //case EDGE_COLLAPSE: 
-            //{
-            //    EdgeCollapse simplifier;
-            //    result = simplifier.simplify(original_mesh_, detail_level_);
-            //    break;
-            //}
+            case EDGE_COLLAPSE: 
+            {
+                algo_name_ = "Edge collapse";
+                Mesh::EdgeMesh edge_orig_mesh(orig_mesh_);
+                EdgeCollapse::EdgeCollapse simplifier(edge_orig_mesh, detail_level_);
+                result = simplifier.simplify();
+                break;
+            }
             //case QUADRIC: 
             //{
             //    QuadricSimplifier simplifier;
@@ -133,32 +135,65 @@ private:
 
     void draw_ui() 
     {
+        static bool warned_about_edge_collapse = false;
+        static bool was_dragging = false;
+        static bool last_is_dragging = false; 
+
         if (ImGui::Button("Vertex Cluster")) 
         {
             algo_ = VERTEX_CLUSTER;
             simplify_and_update();
             update_metrics();
         }
-        //ImGui::SameLine();
-        //if (ImGui::Button("Edge Collapse")) {
-        //    current_algo_ = EDGE_COLLAPSE;
-        //    simplify_and_update();
-        //}
-        //ImGui::SameLine();
-        //if (ImGui::Button("Quadric")) {
-        //    current_algo_ = QUADRIC;
-        //    simplify_and_update();
-        //}
-
-        //ImGui::Text("Original faces: %d", original_mesh_.faceCount());
-        //ImGui::Text("Min possible: %d faces (%.2f%%)", 
-        //    min_faces_, min_detail_ * 100);
-        
-        bool changed = ImGui::SliderFloat("Detail Level", &detail_level_, min_detail_, max_detail_, "%.3f");
-        if (changed)
+        ImGui::SameLine();
+        if (ImGui::Button("Edge Collapse")) 
         {
+            algo_ = EDGE_COLLAPSE;
             simplify_and_update();
             update_metrics();
+        }
+
+        if (algo_ == EDGE_COLLAPSE && !warned_about_edge_collapse) 
+        {
+            ImGui::OpenPopup("Edge Collapse Warning");
+            warned_about_edge_collapse = true;
+        }
+
+        if (ImGui::BeginPopupModal("Edge Collapse Warning")) 
+        {
+            ImGui::Text("Edge Collapse is significantly slower than Vertex Cluster.");
+            ImGui::Text("It may take several seconds for large models.");
+            ImGui::Text("The simplification will run when you release the slider.");
+
+            if (ImGui::Button("OK, honey"))
+                ImGui::CloseCurrentPopup();
+
+            ImGui::EndPopup();
+        }
+
+        bool changed = ImGui::SliderFloat("Detail Level", &detail_level_, min_detail_, max_detail_, "%.3f");
+        bool is_dragging = ImGui::IsItemActive();
+
+        if (algo_ == VERTEX_CLUSTER) 
+        {
+            if (changed) 
+            {
+                simplify_and_update();
+                update_metrics();
+            }
+        } 
+        else 
+        { 
+            if (last_is_dragging && !is_dragging) 
+            {
+                simplify_and_update();
+                update_metrics();
+            }
+
+            if (is_dragging)
+                ImGui::TextColored(ImVec4(1,1,0,1), "Release slider to apply edge collapse and wait (please, sir)");
+
+            last_is_dragging = is_dragging;
         }
 
         metrics_callback();

@@ -116,9 +116,9 @@ public:
         triangles_[ind] = triangle;
     }
 
-    void set_triangle_vert(Vec3::Vec3f vert, TriangleInd ind, size_t vert_in_triangle_ind)
+    void set_triangle_vert(VertexInd vert_ind, TriangleInd ind, size_t vert_in_triangle_ind)
     {
-        triangles_[ind][vert_in_triangle_ind] = vert;
+        triangles_[ind][vert_in_triangle_ind] = vert_ind;
     }
 
     void set_triangles(std::vector<Triangle>& triangles)
@@ -297,10 +297,10 @@ public:
         size_t edges_amt = edges_.size();
         for (EdgeInd e = 0; e < edges_amt; e++) 
         {
-            if (edges_[e].is_active && edges_[e].v1_ == v1 && edges_[e].v2_ == v2)
+            if (edges_[e].is_active_ && edges_[e].v1_ == v1 && edges_[e].v2_ == v2)
                 return e;
         }
-        
+
         return -1;
     }
 
