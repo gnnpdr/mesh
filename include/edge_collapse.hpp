@@ -31,12 +31,17 @@ namespace Detail
 
 class EdgeCollapse
 {
+protected:
     EdgeMesh& mesh_;        //да, только edgemesh. создавать, передавать mesh и создавать его прям тут накладно. пусть это делают вне.
 
     std::priority_queue<EdgePtr> edge_heap_;
 
     float detail_level_ = 0.5f;
     size_t final_triangles_amt_ = 400;
+
+    virtual Vec3::Vec3f calc_new_pos(VertexInd v1, VertexInd v2) = 0;
+
+    virtual float calc_edge_cost(EdgeInd e) = 0;
 
 public:
     explicit EdgeCollapse(Mesh::EdgeMesh& mesh) : mesh_(mesh)
@@ -73,6 +78,7 @@ public:
         return mesh_;
     }
 
+    virtual ~EdgeCollapse() = default;
 
 private:
 
@@ -87,17 +93,6 @@ private:
             final_triangles_amt = orig_triangles_amt;
 
         return final_triangles_amt;
-    }
-
-    float calc_edge_cost(EdgeInd e)
-    {
-        auto& edges = mesh_.get_edges();
-        auto& vertices = mesh_.get_vertices();
-
-        auto& v1 = vertices[edges[e].v1_];
-        auto& v2 = vertices[edges[e].v2_];
-
-        return Vec3::distance(v1, v2);
     }
 
     void build_heap() 
@@ -140,11 +135,7 @@ private:
         return {Detail::ERROR_VAL, 0.0f};
     }
 
-    Vec3::Vec3f calc_new_pos(VertexInd v1, VertexInd v2)
-    {
-        auto& vertices = mesh_.get_vertices();
-        return (vertices[v1] + vertices[v2]) * 0.5f;
-    }
+    
 
     void collapse_edge(EdgeInd edge_ind) 
     {
@@ -242,4 +233,57 @@ private:
         }
     }
 };
+
+class SimpleEdgeCollapse : public EdgeCollapse
+{
+protected:
+
+    Vec3::Vec3f calc_new_pos(VertexInd v1, VertexInd v2) override
+    {
+        auto& vertices = mesh_.get_vertices();
+        return (vertices[v1] + vertices[v2]) * 0.5f;
+    }
+
+    float calc_edge_cost(EdgeInd e) override
+    {
+        auto& edges = mesh_.get_edges();
+        auto& vertices = mesh_.get_vertices();
+
+        auto& v1 = vertices[edges[e].v1_];
+        auto& v2 = vertices[edges[e].v2_];
+
+        return Vec3::distance(v1, v2);
+    }
+
+public:
+    SimpleEdgeCollapse(EdgeMesh& mesh, float detail_level) : EdgeCollapse(mesh, detail_level) 
+    {
+    }
+
+    ~SimpleEdgeCollapse() = default;
+};
+
+class QuadricEdgeCollapse : public EdgeCollapse
+{
+protected:
+
+    Vec3::Vec3f calc_new_pos(VertexInd v1, VertexInd v2) override
+    {
+
+    }
+
+    float calc_edge_cost(EdgeInd e) override
+    {
+
+    }
+
+public:
+
+    QuadricEdgeCollapse(EdgeMesh& mesh, float detail_level) : EdgeCollapse(mesh, detail_level) 
+    {
+    }
+
+    ~QuadricEdgeCollapse() = default;
+};
+
 }

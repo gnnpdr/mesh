@@ -42,8 +42,5 @@ public:
 
         file.close(); 
     }
-
-private:
-
 };
 }
