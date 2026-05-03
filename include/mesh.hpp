@@ -8,10 +8,10 @@ namespace Mesh
 {
 
 using Vertex = Vec3::Vec3f;
-using VertexInd = size_t;
-using TriangleInd = size_t;
+using VertexInd = int;
+using TriangleInd = int;
 using Triangle = std::array<VertexInd, 3>;
-using EdgeInd = size_t;
+using EdgeInd = int;            //чтобы работала проверка -1 на find_edge
 
 
 class Mesh
@@ -160,7 +160,7 @@ private:
         vertices_.push_back(v);
     }
 
-    void add_triangle(const size_t v1, const size_t v2, const size_t v3)
+    void add_triangle(const int v1, const int v2, const int v3)
     {
         if (v1 >= vertices_.size() || v2 >= vertices_.size() || v3 >= vertices_.size()) 
         {

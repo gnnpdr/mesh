@@ -60,10 +60,11 @@ class VertexCluster
     std::map<CellPos, CellData> cells_;
     std::map<CellPos, size_t> cell_to_new_ind_;
 
-    std::vector<size_t> old_to_new_v_;
+    std::vector<int> old_to_new_v_;
 
     std::vector<Vec3::Vec3f> new_vertices_;
-    std::vector<std::array<size_t, 3>> new_faces_;
+    std::vector<std::array<int, 3>> new_faces_;
+
     
 public:
 
@@ -155,9 +156,9 @@ private:
         
         for (const auto& face : faces) 
         {
-            size_t v0 = old_to_new_v_[face[0]];
-            size_t v1 = old_to_new_v_[face[1]];
-            size_t v2 = old_to_new_v_[face[2]];
+            int v0 = old_to_new_v_[face[0]];
+            int v1 = old_to_new_v_[face[1]];
+            int v2 = old_to_new_v_[face[2]];
             
             if (v0 != v1 && v1 != v2 && v0 != v2) 
                 new_faces_.push_back({v0, v1, v2});

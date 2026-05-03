@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <cassert>
+#include <vector>
 
 namespace Vec3
 {
@@ -42,6 +43,12 @@ public:
     Vec3 operator*(U scalar) const 
     {
         return Vec3(x_ * static_cast<T>(scalar), y_ * static_cast<T>(scalar), z_ * static_cast<T>(scalar));
+    }
+
+    template<typename U>
+    Vec3 operator/(U scalar) const 
+    {
+        return Vec3(x_ / static_cast<T>(scalar), y_ / static_cast<T>(scalar), z_ / static_cast<T>(scalar));
     }
 
     T dot(const Vec3& other) const
@@ -85,7 +92,8 @@ public:
     }
 
     //проверка локальной близости точек 
-    bool equals(const Vec3& other) const {
+    bool equals(const Vec3& other) const 
+    {
         return std::abs(x_ - other.x_) < Detail::EPSILON<T> && std::abs(y_ - other.y_) < Detail::EPSILON<T> && std::abs(z_ - other.z_) < Detail::EPSILON<T>;
     }
 
@@ -102,6 +110,9 @@ public:
     }
 
 };
+
+using Vec3f = Vec3<float>;
+using Vec3d = Vec3<double>;
 
 template<typename T, typename U>
 Vec3<T> operator*(U scalar, const Vec3<T>& v) 
@@ -128,6 +139,18 @@ std::ostream& operator<<(std::ostream& os, const Vec3<T>& v)
     return os;
 }
 
-using Vec3f = Vec3<float>;
-using Vec3d = Vec3<double>;
+Vec3f get_normal(Vec3f dot1, Vec3f dot2, Vec3f dot3)
+{
+    return (dot2 - dot1).cross(dot3 - dot1).normalized();
+}
+
+std::vector<float> get_plane(Vec3f dot1, Vec3f dot2, Vec3f dot3)
+{
+    Vec3f normal = get_normal(dot1, dot2, dot3);
+
+    float d = -normal.dot(dot1);
+
+    return {normal.x(), normal.y(), normal.z(), d};
+}
+
 }

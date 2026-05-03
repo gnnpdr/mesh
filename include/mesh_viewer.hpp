@@ -1,8 +1,7 @@
 #pragma once
 #include "vertex_cluster.hpp"
 #include "metrics.hpp"
-//#include "edhe_collapse.hpp"
-//#include "quadric.hpp"
+#include "edge_collapse.hpp"
 
 #include "polyscope/polyscope.h"
 #include "polyscope/surface_mesh.h"
@@ -14,8 +13,8 @@ namespace MeshViewer
 enum AlgorithmType
 {
     VERTEX_CLUSTER,
-    EDGE_COLLAPSE//,
-    //QUADRIC
+    EDGE_COLLAPSE,
+    QUADRIC
 };
 
 class MeshViewer
@@ -99,6 +98,7 @@ private:
         {
             case VERTEX_CLUSTER: 
             {
+                algo_name_ = "Vertex cluster";
                 VertexCluster::VertexCluster simplifier(orig_mesh_, detail_level_);
                 result = simplifier.simplify();
                 break;
@@ -107,16 +107,18 @@ private:
             {
                 algo_name_ = "Edge collapse";
                 Mesh::EdgeMesh edge_orig_mesh(orig_mesh_);
-                EdgeCollapse::EdgeCollapse simplifier(edge_orig_mesh, detail_level_);
+                EdgeCollapse::SimpleEdgeCollapse simplifier(edge_orig_mesh, detail_level_);
                 result = simplifier.simplify();
                 break;
             }
-            //case QUADRIC: 
-            //{
-            //    QuadricSimplifier simplifier;
-            //    result = simplifier.simplify(original_mesh_, detail_level_);
-            //    break;
-            //}
+            case QUADRIC: 
+            {
+                algo_name_ = "Quadric";
+                Mesh::EdgeMesh edge_orig_mesh(orig_mesh_);
+                EdgeCollapse::QuadricEdgeCollapse simplifier(edge_orig_mesh, detail_level_);
+                result = simplifier.simplify();
+                break;
+            }
             default:
                 result = orig_mesh_;
         }
@@ -152,6 +154,14 @@ private:
             simplify_and_update();
             update_metrics();
         }
+        ImGui::SameLine();
+        if (ImGui::Button("Quadric")) 
+        {
+            algo_ = QUADRIC;
+            simplify_and_update();
+            update_metrics();
+        }
+
 
         if (algo_ == EDGE_COLLAPSE && !warned_about_edge_collapse) 
         {
@@ -174,7 +184,7 @@ private:
         bool changed = ImGui::SliderFloat("Detail Level", &detail_level_, min_detail_, max_detail_, "%.3f");
         bool is_dragging = ImGui::IsItemActive();
 
-        if (algo_ == VERTEX_CLUSTER) 
+        if (algo_ == VERTEX_CLUSTER || algo_ == QUADRIC) 
         {
             if (changed) 
             {
