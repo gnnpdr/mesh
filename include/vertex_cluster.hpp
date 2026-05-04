@@ -57,6 +57,7 @@ class VertexCluster
     float cell_size_;
     float detail_level_ = 0.02;
 
+
     std::map<CellPos, CellData> cells_;
     std::map<CellPos, size_t> cell_to_new_ind_;
 

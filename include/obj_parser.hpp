@@ -10,11 +10,10 @@ namespace OBJParser
 
 namespace Detail
 {
-    char COMMENT_SIGN = '#';
-    std::string VERTICE_SIGN = "v";
-    std::string FACE_SIGN = "f";
-
-    size_t START_IND = 1;
+    static char COMMENT_SIGN = '#';
+    static std::string VERTICE_SIGN = "v";
+    static std::string FACE_SIGN = "f";
+    static size_t START_IND = 1;
 }
 
 class OBJParser 

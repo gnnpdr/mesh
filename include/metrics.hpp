@@ -9,7 +9,7 @@ namespace Metrics
 
 namespace Detail
 {
-    float INF = std::numeric_limits<float>::infinity();
+    static float INF = std::numeric_limits<float>::infinity();
 }
 
 class Metrics
@@ -39,8 +39,8 @@ public:
         std::cout << "Hausdorf " << norm_hausdorff_ * 100 << "%\nRMS " << norm_rms_ * 100 <<  "%" << std::endl;
     }
 
-    float get_hausdorff() { return hausdorff_; }
-    float get_rms() { return rms_; }
+    float get_hausdorff_norm() { return norm_hausdorff_ * 100; }
+    float get_rms_norm() { return rms_ * 100; }
 
 private:
 

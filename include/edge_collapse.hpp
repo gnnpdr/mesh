@@ -27,8 +27,8 @@ struct EdgePtr
 
 namespace Detail
 {
-    VertexInd ERROR_VAL = -1;
-    size_t MAX_TRIANGLES_AMT = 4;
+    static VertexInd ERROR_VAL = -1;
+    static size_t MAX_TRIANGLES_AMT = 4;
 }
 
 class EdgeCollapse

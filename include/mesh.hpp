@@ -111,6 +111,11 @@ public:
         vertices_[ind] = vert;
     }
 
+    void set_vertices(const std::vector<Vertex>& vertices)
+    {
+        vertices_ = vertices;
+    }
+
     void set_triangle(Triangle& triangle, TriangleInd ind)
     {
         triangles_[ind] = triangle;

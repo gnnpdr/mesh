@@ -139,12 +139,12 @@ std::ostream& operator<<(std::ostream& os, const Vec3<T>& v)
     return os;
 }
 
-Vec3f get_normal(Vec3f dot1, Vec3f dot2, Vec3f dot3)
+inline Vec3f get_normal(Vec3f dot1, Vec3f dot2, Vec3f dot3)
 {
     return (dot2 - dot1).cross(dot3 - dot1).normalized();
 }
 
-std::vector<float> get_plane(Vec3f dot1, Vec3f dot2, Vec3f dot3)
+inline std::vector<float> get_plane(Vec3f dot1, Vec3f dot2, Vec3f dot3)
 {
     Vec3f normal = get_normal(dot1, dot2, dot3);
 

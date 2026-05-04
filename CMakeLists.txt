@@ -10,6 +10,8 @@ option(POLYSCOPE_BUILD_SHARED_LIBS "Build polyscope as shared libs" OFF)
 add_subdirectory(polyscope)
 
 set(SOURCES
+    src/mesh_viewer.cpp
+    src/ray_tracer.cpp
     src/main.cpp
 )
 
