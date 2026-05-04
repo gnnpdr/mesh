@@ -78,7 +78,7 @@ void MeshViewer::MeshViewer::render_raytraced()
     settings.vertical_fov_deg = 45.0;
     settings.width = 800;
     settings.height = 600;
-    settings.light_pos = Vec3f(5.0f, 10.0f, 5.0f);          //!! может, добавить в юай возможность менять свет?
+    settings.light_pos = light_pos_;
     
     // через shared_ptr безопасно для потока
     auto rt = std::make_shared<RayTracer::RayTracer>(settings);
@@ -100,10 +100,14 @@ void MeshViewer::MeshViewer::render_raytraced()
         transformed_mesh.set_vertices(transformed_vertices);
         rt->add_object(transformed_mesh);
     }
-    //может, добавить, чтобы задавать имя этого файла
-    std::thread render_thread([rt]() 
+    std::string output_filename = new_photo_name_;
+    std::cout << new_photo_name_ << " " << output_filename << std::endl;
+    if (output_filename.empty()) 
+        output_filename = "raytraced_output.png";
+
+    std::thread render_thread([rt, output_filename]() 
     {
-        rt->render("raytraced_output.png");
+        rt->render(output_filename);
     });
 
     render_thread.detach();
@@ -161,6 +165,7 @@ void MeshViewer::MeshViewer::draw_simplification_ui()
     if (ImGui::Button("Vertex Cluster")) 
     {
         algo_ = VERTEX_CLUSTER;
+        algo_name_ = "Vertex cluster";
         simplify_and_update();
         update_metrics();
     }
@@ -168,6 +173,7 @@ void MeshViewer::MeshViewer::draw_simplification_ui()
     if (ImGui::Button("Edge Collapse")) 
     {
         algo_ = EDGE_COLLAPSE;
+        algo_name_ = "Edge Collapse";
         simplify_and_update();
         update_metrics();
     }
@@ -175,6 +181,7 @@ void MeshViewer::MeshViewer::draw_simplification_ui()
     if (ImGui::Button("Quadric")) 
     {
         algo_ = QUADRIC;
+        algo_name_ = "Quadric";
         simplify_and_update();
         update_metrics();
     }
@@ -216,7 +223,7 @@ void MeshViewer::MeshViewer::draw_simplification_ui()
     metrics_callback();
 }
 
-//поделить 
+//поделить
 void MeshViewer::MeshViewer::draw_scene_ui() 
 {
     if (ImGui::CollapsingHeader("Scene Objects", ImGuiTreeNodeFlags_DefaultOpen)) 
@@ -231,46 +238,126 @@ void MeshViewer::MeshViewer::draw_scene_ui()
         ImGui::EndChild();
         ImGui::SameLine();
         ImGui::BeginGroup();
-        if (ImGui::Button("Add Current Simplified")) 
-            ImGui::OpenPopup("Add Simplified Object");
-        if (ImGui::BeginPopupModal("Add Simplified Object", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) 
-        {
-            static float pos_x = 2.0f, pos_y = 0.0f, pos_z = 0.0f;
-            static float color_r = 0.3f, color_g = 0.7f, color_b = 0.3f;
-            ImGui::Text("Position:");
-            ImGui::DragFloat("X", &pos_x, 0.1f);
-            ImGui::DragFloat("Y", &pos_y, 0.1f);
-            ImGui::DragFloat("Z", &pos_z, 0.1f);
-            ImGui::Text("Color:");
-            ImGui::ColorEdit3("Color", &color_r);
-            ImGui::Separator();
+
+        if (ImGui::Button("Load OBJ File")) {
+            ImGui::OpenPopup("Load Object Dialog");
+        }
         
+        if (ImGui::BeginPopupModal("Load Object Dialog", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) 
+        {
+            ImGui::Text("Load new 3D object");
+            ImGui::Separator();
+            
+            ImGui::Text("File path:");
+            ImGui::InputText("##filename", new_object_filename_, sizeof(new_object_filename_));
+            
+            ImGui::Text("Object name:");
+            ImGui::InputText("##objname", new_object_name_, sizeof(new_object_name_));
+            
+            static float pos_x = 0.0f, pos_y = 0.0f, pos_z = 0.0f;
+            ImGui::Text("Position:");
+            ImGui::DragFloat("X##pos", &pos_x, 0.1f);
+            ImGui::DragFloat("Y##pos", &pos_y, 0.1f);
+            ImGui::DragFloat("Z##pos", &pos_z, 0.1f);
+            
+            static float color_r = 0.7f, color_g = 0.7f, color_b = 0.7f;
+            ImGui::Text("Color:");
+            ImGui::ColorEdit3("##newobjcolor", &color_r);
+            
+            ImGui::Separator();
+            
+            if (ImGui::Button("Load", ImVec2(120, 0))) 
+            {
+                std::string filename(new_object_filename_);
+                std::string obj_name(new_object_name_);
+                
+                if (obj_name.empty()) 
+                {
+                    size_t last_slash = filename.find_last_of("/\\");
+                    size_t last_dot = filename.find_last_of('.');
+                    if (last_slash != std::string::npos) last_slash++;
+                    else last_slash = 0;
+                    obj_name = filename.substr(last_slash, last_dot - last_slash);
+                }
+                
+                load_object_from_file(filename, obj_name, Vec3f(pos_x, pos_y, pos_z), Vec3f(color_r, color_g, color_b));
+                
+                new_object_filename_[0] = '\0';
+                new_object_name_[0] = '\0';
+                
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
+        ImGui::Separator();
+        
+        if (ImGui::Button("Add")) {
+            ImGui::OpenPopup("Add Dialog");
+        }
+        
+        if (ImGui::BeginPopupModal("Add Dialog", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) 
+        {
+            static char copy_name[256] = "";
+            static float copy_pos_x = 2.0f, copy_pos_y = 0.0f, copy_pos_z = 0.0f;
+            static float copy_color_r = 0.3f, copy_color_g = 0.7f, copy_color_b = 0.3f;
+            
+            ImGui::Text("Add copy of current model");
+            ImGui::Separator();
+            
+            ImGui::Text("Name:");
+            ImGui::InputText("##copyname", copy_name, sizeof(copy_name));
+            
+            ImGui::Text("Position:");
+            ImGui::DragFloat("X##copy", &copy_pos_x, 0.1f);
+            ImGui::DragFloat("Y##copy", &copy_pos_y, 0.1f);
+            ImGui::DragFloat("Z##copy", &copy_pos_z, 0.1f);
+            
+            ImGui::Text("Color:");
+            ImGui::ColorEdit3("##copycolor", &copy_color_r);
+            
+            ImGui::Separator();
+            
             if (ImGui::Button("Add", ImVec2(120, 0))) 
             {
                 auto new_obj = std::make_unique<SceneObject>();
-                new_obj->name = "simplified_" + std::to_string(objects_.size());
-                if (selected_object_) 
-                {
+                
+                std::string obj_name(copy_name);
+                if (obj_name.empty()) {
+                    obj_name = "copy_" + std::to_string(objects_.size());
+                }
+                new_obj->name = obj_name;
+                
+                if (selected_object_) {
                     new_obj->orig_mesh = selected_object_->orig_mesh;
-                    new_obj->mesh = selected_object_->orig_mesh;      //не уверена. ползунок ведь будет на начале. это странно
-                    new_obj->detail_level = 0.0f;
-                    new_obj->current_algo = algo_;
+                    new_obj->mesh = selected_object_->orig_mesh;
+                    new_obj->detail_level = selected_object_->detail_level;
+                    new_obj->current_algo = selected_object_->current_algo;
                 } else {
                     new_obj->orig_mesh = current_mesh_;
                     new_obj->mesh = current_mesh_;
                 }
-                new_obj->position = Vec3f(pos_x, pos_y, pos_z);
-                new_obj->color = Vec3f(color_r, color_g, color_b);
+                
+                new_obj->position = Vec3f(copy_pos_x, copy_pos_y, copy_pos_z);
+                new_obj->color = Vec3f(copy_color_r, copy_color_g, copy_color_b);
                 new_obj->is_original = false;
+                
                 register_object(new_obj.get());
                 objects_.push_back(std::move(new_obj));
+                
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0))) 
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
                 ImGui::CloseCurrentPopup();
+            }
             ImGui::EndPopup();
         }
+
         if (ImGui::Button("Remove Selected") && selected_object_ && !selected_object_->is_original) 
         {
             SceneObject* to_remove = selected_object_;
@@ -293,7 +380,44 @@ void MeshViewer::MeshViewer::draw_scene_ui()
         }
         ImGui::Separator();
         if (ImGui::Button("Render Ray Traced", ImVec2(200, 0)))
-            render_raytraced();
+        {
+            ImGui::OpenPopup("Render");
+        }
+        if (ImGui::BeginPopupModal("Render", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) 
+        {
+            static float light_pos_x = 2.0f, light_pos_y = 0.0f, light_pos_z = 0.0f;
+            char photo_name[256] = "";
+            
+            ImGui::Text("Render scene with specific parameters");
+            ImGui::Separator();
+            
+            ImGui::Text("Output picture name:");
+            ImGui::InputText("##picname", photo_name, sizeof(photo_name));
+            
+            ImGui::Text("Light position:");
+            ImGui::DragFloat("X##light", &light_pos_x, 0.1f);
+            ImGui::DragFloat("Y##light", &light_pos_y, 0.1f);
+            ImGui::DragFloat("Z##light", &light_pos_z, 0.1f);
+            
+            ImGui::Separator();
+            
+            if (ImGui::Button("Add", ImVec2(120, 0))) 
+            {
+                light_pos_ = Vec3f(light_pos_x, light_pos_y, light_pos_z);
+                new_photo_name_ = photo_name;
+
+                std::cout << photo_name << " " << new_photo_name_ << std::endl;
+                render_raytraced();
+
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
         ImGui::EndGroup();
         if (selected_object_) 
         {
@@ -322,7 +446,6 @@ void MeshViewer::MeshViewer::draw_scene_ui()
         }
     }
 }
-
 
 void MeshViewer::MeshViewer::metrics_callback() 
 {
@@ -364,4 +487,28 @@ void MeshViewer::MeshViewer::register_object(SceneObject* obj)
     obj->ps_handle->setEnabled(obj->visible);
     
     apply_transform(obj);
+}
+
+void MeshViewer::MeshViewer::load_object_from_file(const std::string& filename, const std::string& name, const Vec3f& position, const Vec3f& color)
+{
+    try {
+        OBJParser::OBJParser parser(filename);
+        Mesh::Mesh new_mesh(parser);
+        
+        auto new_obj = std::make_unique<SceneObject>();
+        new_obj->name = name;
+        new_obj->mesh = new_mesh;
+        new_obj->orig_mesh = new_mesh;
+        new_obj->position = position;
+        new_obj->color = color;
+        new_obj->is_original = false;
+        new_obj->detail_level = 1.0f;
+        
+        register_object(new_obj.get());
+        objects_.push_back(std::move(new_obj));
+        
+        std::cout << "Loaded object: " << name << " from " << filename << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to load " << filename << ": " << e.what() << std::endl;
+    }
 }

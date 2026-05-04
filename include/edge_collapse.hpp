@@ -314,7 +314,7 @@ protected:
     {
         Matrix::Quadric Q = vertex_Qs_[v1] + vertex_Qs_[v2];
 
-        if (Q.has_nan()) {
+        if (Q.has_nan() || Q.is_degenerate()) {
             std::cout << "NaN in Quadric sum for edge (" << v1 << "," << v2 << ")" << std::endl;
             return (mesh_.get_vertices()[v1] + mesh_.get_vertices()[v2]) * 0.5f;
         }
@@ -322,25 +322,28 @@ protected:
         Matrix::Matrix<3,3> A = Q.get_sub_A();      //конечно, надо бы вставить проверку
         Matrix::Vector<3> B = Q.get_B();
 
+        // Проверка на вырожденность A
+        float det = A.determinant();
+        
+        if (std::abs(det) < 1e-8f) 
+            return (mesh_.get_vertices()[v1] + mesh_.get_vertices()[v2]) * 0.5f;
+    
         Gauss::Solver solver(A, B);
         Matrix::Vector<3> optimal_pos = solver.solve();
 
+        // Проверка результата на NaN
+        if (std::isnan(optimal_pos(0,0)) || std::isnan(optimal_pos(1,0)) || std::isnan(optimal_pos(2,0)))
+            return (mesh_.get_vertices()[v1] + mesh_.get_vertices()[v2]) * 0.5f;
+
         Vec3::Vec3f result(optimal_pos(0,0), optimal_pos(1,0), optimal_pos(2,0));
 
-        float max_dist = 1000.0f;  // или какой-то разумный порог
+        float max_dist = 1000.0f;  // разумный порог
         if (result.length() > max_dist) {
             std::cout << "WARNING: Optimal position too far, using midpoint" << std::endl;
             return (mesh_.get_vertices()[v1] + mesh_.get_vertices()[v2]) * 0.5f;
         }
 
         return result;
-    
-        //это для случая, когда с матрицей a что-то не так, это нам пока не нужно
-        // 4. Если матрица вырождена — берём любую точку (например, середину)
-        //    Ошибка при этом будет минимально возможной (0 для плоской области)
-        // optimal_pos = (mesh_.get_vertices()[edge.v1_] + mesh_.get_vertices()[edge.v2_]) * 0.5f;
-        // result = Vec3::Vec3f(solution(0,0), solution(1,0), solution(2,0));
-        // return optimal_pos;
     }
 
     //похоже, придется считать новую позицию дважды, потому что у нас функции виртуальные и нельзя менять их параметры и выходное значение
@@ -352,18 +355,33 @@ protected:
 
         Matrix::Quadric sum_Q = vertex_Qs_[v1] + vertex_Qs_[v2];
 
+        if (sum_Q.has_nan() || sum_Q.is_degenerate()) {
+            // Fallback на длину ребра
+            return Vec3::distance(mesh_.get_vertices()[v1], mesh_.get_vertices()[v2]);
+        }
+
         Vec3::Vec3f optimal_pos = calc_new_pos(v1, v2);
         float error = evaluate_error(sum_Q, optimal_pos);
+
+        if (std::isnan(error) || std::isinf(error)) {
+            return Vec3::distance(mesh_.get_vertices()[v1], mesh_.get_vertices()[v2]);
+        }
+
         return error;
     }
 
-    void update_quadrics_around_vertex(VertexInd v) {
-        // Пересчитываем квадрику для вершины v с нуля
+    void update_quadrics_around_vertex(VertexInd v) 
+    {
+        // Полностью пересчитываем квадрику с нуля
         vertex_Qs_[v] = Matrix::Quadric();
         
         for (TriangleInd t_idx : mesh_.get_vertex_data()[v].incident_triangles_) {
             const auto& t = mesh_.get_triangles()[t_idx];
-            vertex_Qs_[v] = vertex_Qs_[v] + get_K(t);
+            Matrix::Quadric K = get_K(t);
+
+            if (!K.has_nan() && !K.is_degenerate()) {
+                vertex_Qs_[v] = vertex_Qs_[v] + K;
+            }
         }
     }
 
@@ -379,6 +397,8 @@ protected:
         Vec3::Vec3f new_pos = calc_new_pos(vert_to_keep, vert_to_remove);
         mesh_.set_vert(new_pos, vert_to_keep);
 
+        vertex_Qs_[vert_to_keep] = vertex_Qs_[vert_to_keep] + vertex_Qs_[vert_to_remove];
+
         //переносим треугольники с удаленной вершины на оставшуюся
         auto& triangles_to_update = mesh_.get_vertex_data()[vert_to_remove].incident_triangles_;  
         for (TriangleInd triangle_ind : triangles_to_update) 
@@ -393,8 +413,15 @@ protected:
             }
         }
 
-        update_quadrics_around_vertex(vert_to_keep);
+        std::set<VertexInd> vertices_to_update;
+        vertices_to_update.insert(vert_to_keep);
+        for (VertexInd neighbor : mesh_.get_vertex_data()[vert_to_keep].neighbor_vertices_) {
+            vertices_to_update.insert(neighbor);
+        }
 
+        for (VertexInd v : vertices_to_update) 
+            update_quadrics_around_vertex(v);
+    
         //обновляем соседей
         auto& keep_neighbors = mesh_.get_vertex_data()[vert_to_keep].neighbor_vertices_;
         auto& remove_neighbors = mesh_.get_vertex_data()[vert_to_remove].neighbor_vertices_;
@@ -460,71 +487,21 @@ private:
         {
             const auto& t = mesh_.get_triangles()[t_ind];
 
-            auto& vertices = mesh_.get_vertices();
-            Vec3::Vec3f v0 = vertices[t[0]];
-            Vec3::Vec3f v1 = vertices[t[1]];
-            Vec3::Vec3f v2 = vertices[t[2]];
-            
-            Vec3::Vec3f e1 = v1 - v0;
-            Vec3::Vec3f e2 = v2 - v0;
-            float area2 = e1.cross(e2).length();
-            
-            if (area2 < 1e-12f) {
-                degenerate_count++;
-                continue;
-            }
-
             Matrix::Quadric K = get_K(t);
 
-            if (K.is_degenerate()) {
+            if (K.has_nan() || K.is_degenerate()) {
                 degenerate_count++;
                 continue;
             }
 
-            if (K.has_nan()) {
-                std::cout << "NaN in K matrix for triangle " << t_ind << " despite area check!" << std::endl;
-                continue;
-            }
-        
-            
             vertex_Qs_[t[0]] = vertex_Qs_[t[0]] + K;
             vertex_Qs_[t[1]] = vertex_Qs_[t[1]] + K;
             vertex_Qs_[t[2]] = vertex_Qs_[t[2]] + K;
+        }
 
-            std::cout << "Initialized " << vertex_Qs_.size() << " quadrics, "
-              << degenerate_count << " degenerate triangles skipped" << std::endl;
-            }
+        std::cout << "Initialized " << vertex_Qs_.size() << " quadrics, "
+                  << degenerate_count << " degenerate triangles skipped" << std::endl;
     }
-
-
-    // Matrix::Quadric get_K(const Triangle& t) const 
-    // {
-    //     auto& vertices = mesh_.get_vertices();
-    //     Vec3::Vec3f dot1 = vertices[t[0]];
-    //     Vec3::Vec3f dot2 = vertices[t[1]];
-    //     Vec3::Vec3f dot3 = vertices[t[2]];
-
-    //     std::vector<float> plane_vec = Vec3::get_plane(dot1, dot2, dot3);
-    //     //Matrix::Vector<4> plane_matrix(plane_vec);
-    //     Matrix::Vector<4> plane_matrix;
-    //     plane_matrix(0,0) = plane_vec[0];
-    //     plane_matrix(1,0) = plane_vec[1];
-    //     plane_matrix(2,0) = plane_vec[2];
-    //     plane_matrix(3,0) = plane_vec[3];
-    //     auto t_plane_matrix = plane_matrix.transpose();
-
-    //     Matrix::Quadric result = plane_matrix * t_plane_matrix;
-
-    //     for (int i = 0; i < 4; i++) {
-    //         for (int j = 0; j < 4; j++) {
-    //             if (std::isnan(result(i,j)) || std::isinf(result(i,j))) {
-    //                 std::cout << "NaN in K matrix!\n";
-    //             }
-    //         }
-    //     }
-
-    //     return result;
-    // }
 
     Matrix::Quadric get_K(const Triangle& t) const {
         auto& vertices = mesh_.get_vertices();
@@ -532,25 +509,22 @@ private:
         Vec3::Vec3f dot2 = vertices[t[1]];
         Vec3::Vec3f dot3 = vertices[t[2]];
         
-        // Проверка на вырожденный треугольник
         Vec3::Vec3f edge1 = dot2 - dot1;
         Vec3::Vec3f edge2 = dot3 - dot1;
         Vec3::Vec3f normal = edge1.cross(edge2);
         
-        float area2 = normal.length();  // удвоенная площадь
-        if (area2 < 1e-12f) {  // слишком маленькая площадь
+        float area2 = normal.length(); 
+        if (area2 < 1e-12f)
+        {  
             std::cout << "Degenerate triangle detected: (" << t[0] << "," << t[1] << "," << t[2] << ")"
                       << " area2=" << area2 << std::endl;
-            return Matrix::Quadric();  // возвращаем нулевую матрицу
+            return Matrix::Quadric(); 
         }
 
-        // Нормализуем нормаль
         normal = normal/area2;
 
-        // Вычисляем d
         float d = -normal.dot(dot1);
 
-        // Создаём матрицу K
         Matrix::Vector<4> plane_vec;
         plane_vec(0,0) = normal.x();
         plane_vec(1,0) = normal.y();

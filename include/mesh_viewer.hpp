@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <algorithm>
+#include <cstring>
 #include "polyscope/polyscope.h"
 #include "polyscope/surface_mesh.h"
 #include <polyscope/curve_network.h>
@@ -65,6 +66,12 @@ class MeshViewer
     std::vector<std::unique_ptr<SceneObject>> objects_;
     SceneObject* selected_object_ = nullptr;
 
+    char new_object_filename_[256] = "";
+    char new_object_name_[256] = "";
+    std::string new_photo_name_ = "";
+    Vec3f light_pos_ = Vec3f(5.0f, 10.0f, 5.0f);
+    bool show_load_dialog_ = false;
+
 public:
 
     MeshViewer(const Mesh::Mesh& orig_mesh) : orig_mesh_(orig_mesh), current_mesh_(orig_mesh) 
@@ -103,8 +110,6 @@ private:
         ImGui::Separator();
         
         draw_scene_ui();
-        
-        metrics_callback();
     }
 
     void draw_simplification_ui();
@@ -113,7 +118,9 @@ private:
     
     inline void update_metrics() 
     {
-        Metrics::Metrics metrics(orig_mesh_, current_mesh_);
+        if (!selected_object_) return;
+
+        Metrics::Metrics metrics(selected_object_->orig_mesh, selected_object_->mesh);
         current_hausdorff_ = metrics.get_hausdorff_norm();
         current_rms_ = metrics.get_rms_norm();
     }
@@ -146,5 +153,7 @@ private:
         glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(obj->position.x(), obj->position.y(), obj->position.z()));
         obj->ps_handle->setTransform(transform);
     }
+
+    void load_object_from_file(const std::string& filename, const std::string& name, const Vec3f& position = Vec3f(0.0f, 0.0f, 0.0f), const Vec3f& color = Vec3f(0.7f, 0.7f, 0.7f));
 };
 }

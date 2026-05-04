@@ -1,3 +1,4 @@
 /build
 *.obj
 /polyscope
+std_image_write.h

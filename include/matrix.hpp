@@ -176,10 +176,8 @@ public:
 
     float determinant() const 
     {
-
         float det = 0.0f;
 
-        // Знаки: + - + -
         det += matrix_[0][0] * minor(0, 0);
         det -= matrix_[0][1] * minor(0, 1);
         det += matrix_[0][2] * minor(0, 2);
@@ -188,7 +186,8 @@ public:
         return det;
     }
 
-    float minor(int row, int col) const {
+    float minor(int row, int col) const 
+    {
         // Вычисляем определитель 3×3, удаляя указанные строку и столбец
         float sub[3][3];
         int sub_i = 0, sub_j;
@@ -204,7 +203,6 @@ public:
             sub_i++;
         }
 
-        // Определитель 3×3
         return sub[0][0] * (sub[1][1] * sub[2][2] - sub[1][2] * sub[2][1])
              - sub[0][1] * (sub[1][0] * sub[2][2] - sub[1][2] * sub[2][0])
              + sub[0][2] * (sub[1][0] * sub[2][1] - sub[1][1] * sub[2][0]);
@@ -226,10 +224,7 @@ template<size_t rows_>
 using Vector = Matrix<rows_, 1>;
 
 using Quadric = Matrix<4, 4>;
-
 }
-
-
 
 namespace Gauss
 {
