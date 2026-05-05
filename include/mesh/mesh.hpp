@@ -1,5 +1,5 @@
 #pragma once
-#include "obj_parser.hpp"
+#include "mesh/obj_parser.hpp"
 #include <array>
 #include <set>
 #include <map>
@@ -29,6 +29,11 @@ public:
     Mesh(const std::vector<Vertex>& vertices, const std::vector<std::array<VertexInd, 3>>& triangles) : vertices_(vertices), triangles_(triangles) 
     {
         bounding_box();
+    }
+
+    inline bool is_empty()
+    {
+        return vertices_.empty() || triangles_.empty();
     }
 
     Mesh(const OBJParser::OBJParser& parser)
@@ -370,4 +375,34 @@ private:
         collect_edges(base_triangles);
     }
 };
+
+template<typename Container, typename Getter>
+std::array<Vec3::Vec3f, 2> compute_bounding_box_of_group(const Container& container, Getter getter)
+{
+    float min_x = 1e30f, max_x = -1e30f;
+    float min_y = 1e30f, max_y = -1e30f;
+    float min_z = 1e30f, max_z = -1e30f;
+    
+    for (const auto& item : container) 
+    {
+        const auto& obj = getter(item);  // получаем объект (может быть ссылка на mesh или сам объект)
+        auto bounding_box = obj.get_bounding_box();
+        
+        min_x = std::min(min_x, bounding_box[0].x());
+        max_x = std::max(max_x, bounding_box[1].x());
+        min_y = std::min(min_y, bounding_box[0].y());
+        max_y = std::max(max_y, bounding_box[1].y());
+        min_z = std::min(min_z, bounding_box[0].z());
+        max_z = std::max(max_z, bounding_box[1].z());
+    }
+    
+    
+    Vec3::Vec3f min_coords(min_x, min_y, min_z);
+    Vec3::Vec3f max_coords(max_x, max_y, max_z);
+
+    std::array<Vec3::Vec3f, 2> group_bounding_box{min_coords, max_coords};
+
+    return group_bounding_box;
+}
+
 }

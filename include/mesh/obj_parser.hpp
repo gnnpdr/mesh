@@ -1,5 +1,5 @@
 #pragma once
-#include "vec3.hpp"
+#include "lib/vec3.hpp"
 #include <fstream>
 #include <sstream>
 #include <string>

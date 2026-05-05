@@ -1,6 +1,6 @@
-#include "stb_image_write.h"
+#include "lib/stb_image_write.h"
 
-#include "ray_tracer.hpp"
+#include "viewer/ray_tracer.hpp"
 #include <algorithm>
 
 RayTracer::HitInfo RayTracer::RayTracer::intersect(const Ray& ray) const 
@@ -31,7 +31,7 @@ RayTracer::HitInfo RayTracer::RayTracer::intersect(const Ray& ray) const
                     
                     // Вычисляем нормаль (интерполированная или просто нормаль треугольника)
                     Vec3::Vec3f normal = (vertices[tri[1]] - vertices[tri[0]]).cross(
-                                         vertices[tri[2]] - vertices[tri[0]]).normalized();
+                                         vertices[tri[2]] - vertices[tri[0]]).normalize();
                     closest.normal = normal;
                 }
             }
@@ -80,16 +80,16 @@ Vec3::Vec3f RayTracer::RayTracer::compute_color(const HitInfo& hit, const Ray& r
     
     Vec3::Vec3f color = Vec3::Vec3f(0.1f, 0.1f, 0.1f);
     
-    Vec3::Vec3f light_dir = (settings_.light_pos - hit.point).normalized();
+    Vec3::Vec3f light_dir = (settings_.light_pos - hit.point).normalize();
     
     if (!is_in_shadow(hit.point, light_dir)) 
     {
         float diff = std::max(0.0f, hit.normal.dot(light_dir));
         color = color + settings_.light_color * diff * settings_.light_intensity;
         
-        Vec3::Vec3f view_dir = (ray.origin - hit.point).normalized();
+        Vec3::Vec3f view_dir = (ray.origin - hit.point).normalize();
         Vec3::Vec3f reflect_dir = (light_dir * (-2.0f * hit.normal.dot(light_dir)) + hit.normal);
-        reflect_dir = reflect_dir.normalized();
+        reflect_dir = reflect_dir.normalize();
         float spec = std::pow(std::max(0.0f, view_dir.dot(reflect_dir)), 32);
         color = color + settings_.light_color * spec * 0.5f;
     }
@@ -101,24 +101,10 @@ Vec3::Vec3f RayTracer::RayTracer::compute_color(const HitInfo& hit, const Ray& r
 
 void RayTracer::RayTracer::render(const std::string& output_filename) 
 {
-    float min_x = 1e30f, max_x = -1e30f;
-    float min_y = 1e30f, max_y = -1e30f;
-    float min_z = 1e30f, max_z = -1e30f;
-        
-    for (const auto& obj : objects_) 
-    {
-        auto bounding_box = obj.get_bounding_box();
-
-        min_x = std::min(min_x, bounding_box[0].x());
-        max_x = std::max(max_x, bounding_box[1].x());
-        min_y = std::min(min_y, bounding_box[0].y());
-        max_y = std::max(max_y, bounding_box[1].y());
-        min_z = std::min(min_z, bounding_box[0].z());
-        max_z = std::max(max_z, bounding_box[1].z());
-    }
-
-    Vec3::Vec3f center((min_x + max_x) / 2, (min_y + max_y) / 2, (min_z + max_z) / 2);
-    float size = std::max({max_x - min_x, max_y - min_y, max_z - min_z});
+    auto group_bounding_box = Mesh::compute_bounding_box_of_group(objects_, [](const auto& mesh) -> const Mesh::Mesh& { return mesh; });
+    float size = std::max({group_bounding_box[1].x() - group_bounding_box[0].x(),
+                           group_bounding_box[1].y() - group_bounding_box[0].y(), 
+                           group_bounding_box[1].z() - group_bounding_box[0].z()});
     
     std::vector<Vec3::Vec3f> framebuffer(settings_.width * settings_.height);
     
@@ -133,8 +119,8 @@ void RayTracer::RayTracer::render(const std::string& output_filename)
     const Vec3::Vec3f up = settings_.camera_up;
     float fov_rad = settings_.vertical_fov_deg * 3.14159f / 180.0f;
 
-    Vec3::Vec3f forward = (target - origin).normalized();
-    Vec3::Vec3f right = forward.cross(up).normalized();
+    Vec3::Vec3f forward = (target - origin).normalize();
+    Vec3::Vec3f right = forward.cross(up).normalize();
     Vec3::Vec3f real_up = right.cross(forward);
     
     #pragma omp parallel for
@@ -145,8 +131,8 @@ void RayTracer::RayTracer::render(const std::string& output_filename)
             float u = (2.0f * (x + 0.5f) / settings_.width - 1.0f) * tan(fov_rad / 2.0f) * aspect;
             float v = (1.0f - 2.0f * (y + 0.5f) / settings_.height) * tan(fov_rad / 2.0f);
             
-            Vec3::Vec3f direction = (forward + right * u + real_up * v).normalized();
-            direction = direction.normalized();
+            Vec3::Vec3f direction = (forward + right * u + real_up * v).normalize();
+            direction = direction.normalize();
             Ray ray(origin, direction);
 
             HitInfo hit = intersect(ray);

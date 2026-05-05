@@ -2,7 +2,7 @@
 
 #include <limits>
 
-#include "mesh.hpp"
+#include "mesh/mesh.hpp"
 
 namespace Metrics
 {

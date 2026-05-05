@@ -7,6 +7,23 @@
 namespace Matrix
 {
 
+namespace Detail
+{
+    static float EPSILON = 1e-6;
+}
+
+/**
+ * @brief Matrix with float components with basic mathematical operations
+ * 
+ * The class provides basic operations for working with matrix:
+ * - Addition, subtraction
+ * - Operations with a scalar
+ * - Dot and vector products
+ * - Normalization and length calculation
+ * 
+ * @tparam rows_ - amount of rows
+ * @tparam cols_ - amount of columns
+ */
 template<size_t rows_, size_t cols_>
 class Matrix
 {
@@ -34,28 +51,16 @@ public:
     float& operator()(size_t r, size_t c)
     {
         if (r >= rows_ || c >= cols_)
-        {
-            std::cout << "trouble, sir: r=" << r << " c=" << c 
-                      << " rows=" << rows_ << " cols=" << cols_ << std::endl;
-
-            // int a = 0;
-            // scanf("%d", &a);
-            return matrix_[0][0];
-        }
+            throw std::out_of_range("Matrix index out of range");
+    
         return matrix_[r][c];
     }
 
     float operator()(size_t r, size_t c) const
     {
         if (r >= rows_ || c >= cols_)
-        {
-            std::cout << "trouble, sir: r=" << r << " c=" << c 
-                      << " rows=" << rows_ << " cols=" << cols_ << std::endl;
-                      
-            // int a = 0;
-            // scanf("%d", &a);
-            return matrix_[0][0];
-        }
+            throw std::out_of_range("Matrix index out of range");
+
         return matrix_[r][c];
     }
 
@@ -76,11 +81,9 @@ public:
     Matrix<rows_, other_cols_> operator*(const Matrix<other_rows_, other_cols_>& other_matrix) const
     {
         Matrix<rows_, other_cols_> new_matrix;
-        if (cols_ != other_rows_)
-        {
-            std::cout << "trouble, cant mul these two matrix" << std::endl;
-            return new_matrix;
-        }
+
+        if (cols_ != other_rows_) 
+            throw std::invalid_argument("Matrix multiplication dimension mismatch");
 
         for (size_t r = 0; r < rows_; r++)
         {
@@ -115,10 +118,7 @@ public:
         Matrix<3, 3> submatrix;
 
         if (rows_ < 3 || cols_ < 4)
-        {
-            std::cout << "too small, sir" << std::endl;
-            return submatrix;
-        }
+            throw std::invalid_argument("Matrix for getting A submatrix should be 3 x 4 minimum");
 
         for (size_t r = 0; r < 3; r++)
         {
@@ -133,6 +133,9 @@ public:
     {
         Matrix<3, 1> B;
 
+        if (rows_ < 3)
+            throw std::invalid_argument("Matrix for getting B submatrix should have 3 rows minimum");
+
         for (size_t r = 0; r < 3; r++)
             B(r, 0) = -matrix_[r][3];
 
@@ -141,13 +144,10 @@ public:
 
     Matrix<1, rows_> transpose()
     {
-        Matrix<1, rows_> t_vec;
-
         if (cols_ != 1)
-        {
-            std::cout << "trouble, its not a vector" << std::endl;
-            return t_vec;
-        }
+            throw std::invalid_argument("This func transposes just vectors");
+
+        Matrix<1, rows_> t_vec;
 
         for (size_t r = 0; r < rows_; r++)
             t_vec(0, r) = matrix_[r][0];
@@ -166,12 +166,15 @@ public:
         }
     }
 
-    bool is_degenerate() const {
-        // Вычисляем определитель 4×4
+    /**
+     * @brief Сhecks by determinant whether a matrix is degenerated
+     * 
+     * @return true if degenerated
+     */
+    bool is_degenerate() const 
+    {
         float det = determinant();
-        
-        // Если определитель близок к нулю — матрица вырождена
-        return std::abs(det) < 1e-6f;
+        return std::abs(det) < Detail::EPSILON;
     }
 
     float determinant() const 
@@ -188,15 +191,18 @@ public:
 
     float minor(int row, int col) const 
     {
-        // Вычисляем определитель 3×3, удаляя указанные строку и столбец
         float sub[3][3];
         int sub_i = 0, sub_j;
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++)
+         {
             if (i == row) continue;
+
             sub_j = 0;
-            for (int j = 0; j < 4; j++) {
+            for (int j = 0; j < 4; j++) 
+            {
                 if (j == col) continue;
+
                 sub[sub_i][sub_j] = matrix_[i][j];
                 sub_j++;
             }
@@ -208,12 +214,14 @@ public:
              + sub[0][2] * (sub[1][0] * sub[2][1] - sub[1][1] * sub[2][0]);
     }
 
-    bool has_nan() const {
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                if (std::isnan(matrix_[i][j]) || std::isinf(matrix_[i][j])) {
+    bool has_nan() const 
+    {
+        for (int i = 0; i < 4; i++) 
+        {
+            for (int j = 0; j < 4; j++) 
+            {
+                if (std::isnan(matrix_[i][j]) || std::isinf(matrix_[i][j]))
                     return true;
-                }
             }
         }
         return false;
@@ -226,6 +234,12 @@ using Vector = Matrix<rows_, 1>;
 using Quadric = Matrix<4, 4>;
 }
 
+
+/**
+ * @brief Calcs matrix equetion using gauss method
+ * 
+ * 
+ */
 namespace Gauss
 {
 class Solver
@@ -281,8 +295,5 @@ public:
 
         return result;
     }
-
-private:
-
 };
 }

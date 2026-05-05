@@ -1,8 +1,8 @@
 #pragma once
-#include "vertex_cluster.hpp"
-#include "metrics.hpp"
-#include "edge_collapse.hpp"
-#include "ray_tracer.hpp"
+#include "algorithms/vertex_cluster.hpp"
+#include "algorithms/metrics.hpp"
+#include "algorithms/edge_collapse.hpp"
+#include "viewer/ray_tracer.hpp"
 
 #include <thread>
 #include <memory>
@@ -68,7 +68,7 @@ class MeshViewer
 
     char new_object_filename_[256] = "";
     char new_object_name_[256] = "";
-    std::string new_photo_name_ = "";
+    char new_photo_name_[256] = "";
     Vec3f light_pos_ = Vec3f(5.0f, 10.0f, 5.0f);
     bool show_load_dialog_ = false;
 
@@ -94,14 +94,17 @@ public:
         update_detail_range();
         update_metrics();
     }
+
+    MeshViewer() = default;
     
-    void show_mesh();
+    void start_viewer();
 
 private:
 
-    void render_raytraced();
+    void render_raytraced(const std::string& photo_name);
 
     void simplify_and_update();
+    void detail_level_slider();
 
     inline void draw_ui() 
     {
@@ -113,6 +116,11 @@ private:
     }
 
     void draw_simplification_ui();
+    void load_file_button();
+    void add_button();
+    void remove_button();
+    void ray_trace_button();
+    void tune_properties();
 
     void draw_scene_ui();
     
@@ -156,4 +164,5 @@ private:
 
     void load_object_from_file(const std::string& filename, const std::string& name, const Vec3f& position = Vec3f(0.0f, 0.0f, 0.0f), const Vec3f& color = Vec3f(0.7f, 0.7f, 0.7f));
 };
+
 }

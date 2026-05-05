@@ -1,5 +1,5 @@
 #pragma once
-#include "mesh.hpp"
+#include "mesh/mesh.hpp"
 #include <fstream>
 
 namespace MeshOBJConverter

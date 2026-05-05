@@ -1,7 +1,7 @@
 #pragma once
 
-#include "mesh.hpp"
-#include "matrix.hpp"
+#include "mesh/mesh.hpp"
+#include "lib/matrix.hpp"
 #include <queue>
 #include <memory>
 #include <algorithm>

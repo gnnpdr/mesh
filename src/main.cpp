@@ -1,20 +1,26 @@
-#include "vertex_cluster.hpp"
-#include "edge_collapse.hpp"
-#include "mesh_obj_converter.hpp"
-#include "mesh_viewer.hpp"
-#include "metrics.hpp"
+#include "algorithms/vertex_cluster.hpp"
+#include "algorithms/edge_collapse.hpp"
+#include "mesh/mesh_obj_converter.hpp"
+#include "viewer/mesh_viewer.hpp"
+#include "algorithms/metrics.hpp"
 #include <iostream>
 #include <string>
 
 int main(int argc, char* argv[]) 
 {
-    std::string filename = argv[1];
-    
-    OBJParser::OBJParser parser(filename);
-    Mesh::EdgeMesh mesh(parser);
+    MeshViewer::MeshViewer viewer;
 
-    MeshViewer::MeshViewer viewer(mesh);
-    viewer.show_mesh();
+    if (argc == 2)
+    {
+        std::string filename = argv[1];
+    
+        OBJParser::OBJParser parser(filename);
+        Mesh::EdgeMesh mesh(parser);
+
+        viewer = MeshViewer::MeshViewer(mesh);
+    }
+
+    viewer.start_viewer();
 
     return 0;
 }
