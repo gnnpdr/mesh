@@ -8,18 +8,23 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(POLYSCOPE_BUILD_SHARED_LIBS "Build polyscope as shared libs" OFF)
 
 add_subdirectory(polyscope)
+add_subdirectory(eigen3)
 
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
+find_package(OpenMP REQUIRED)
+
+
 
 set(SOURCES
     src/main.cpp
-    # src/mesh.cpp
+    src/mesh.cpp
     src/mesh_viewer.cpp
     src/ray_tracer.cpp
-    # src/algorithms/vertex_cluster.cpp
-    # src/algorithms/edge_collapse.cpp
-    # src/algorithms/quadric_edge_collapse.cpp
+    src/register_algorithms.cpp
+    src/vertex_cluster.cpp
+    src/edge_collapse.cpp
+    src/new.cpp
 )
 
 set(HEADERS
@@ -31,6 +36,11 @@ set(HEADERS
     include/algorithms/vertex_cluster.hpp
     include/algorithms/edge_collapse.hpp
     include/algorithms/metrics.hpp
+    include/algorithms/adapters.hpp
+    include/algorithms/simplifier_interface.hpp
+    include/algorithms/simplifier_registry.hpp
+    include/algorithms/register_algorithms.hpp
+    include/algorithms/new.hpp
 )
 
 add_executable(mesh ${SOURCES} ${HEADERS})
@@ -38,8 +48,9 @@ add_executable(mesh ${SOURCES} ${HEADERS})
 target_include_directories(mesh PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    # ${CMAKE_CURRENT_SOURCE_DIR}/lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib
     ${CMAKE_CURRENT_SOURCE_DIR}/polyscope/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/eigen3
 )
 
 target_link_libraries(mesh
@@ -47,6 +58,7 @@ target_link_libraries(mesh
     ${CMAKE_DL_LIBS}
     ${CMAKE_THREAD_LIBS_INIT}
     OpenGL::GL
+    OpenMP::OpenMP_CXX
 )
 
 if(WIN32)

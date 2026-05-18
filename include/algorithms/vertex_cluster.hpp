@@ -25,25 +25,25 @@ struct CellPos
 
 class CellData
 {
-    Vec3::Vec3f sum_;
+    Vec3f sum_;
     size_t verteces_amt_ = 0;
 
 public:
 
     CellData() = default;
 
-    void add(const Vec3::Vec3f& v)
+    void add(const Vec3f& v)
     {
         sum_ = sum_ + v;      //можно вообще добавить оператор += в vec3
         verteces_amt_++;
     }
 
-    Vec3::Vec3f calc_average_v()
+    Vec3f calc_average_v()
     {
         if (!verteces_amt_) 
-            return Vec3::Vec3f(0, 0, 0);
+            return Vec3f(0, 0, 0);
 
-        return Vec3::Vec3f(sum_.x() / verteces_amt_, sum_.y() / verteces_amt_, sum_.z() / verteces_amt_);
+        return Vec3f(sum_.x() / verteces_amt_, sum_.y() / verteces_amt_, sum_.z() / verteces_amt_);
     }
 };
 
@@ -51,8 +51,8 @@ class VertexCluster
 {
     Mesh::Mesh input_mesh_;
 
-    Vec3::Vec3f min_bound_;
-    Vec3::Vec3f max_bound_;
+    Vec3f min_bound_;
+    Vec3f max_bound_;
     
     float cell_size_;
     float detail_level_ = 0.02;
@@ -63,7 +63,7 @@ class VertexCluster
 
     std::vector<int> old_to_new_v_;
 
-    std::vector<Vec3::Vec3f> new_vertices_;
+    std::vector<Vec3f> new_vertices_;
     std::vector<std::array<int, 3>> new_faces_;
 
     
@@ -91,81 +91,28 @@ public:
         old_to_new_v_.resize(vertices_amt);
     } 
 
-    Mesh::Mesh simplify() 
-    {   
-        cluster_vertices();
-
-        calc_new_vertices();
-    
-        old_new_v_match();
-        
-        triangulate();
-        
-        return Mesh::Mesh(new_vertices_, new_faces_);
-    }
+    Mesh::Mesh simplify();
 
 private:
 
     void find_bounds(const Mesh::Mesh& input_mesh)
     {
-        std::array<Vec3::Vec3f, 2> bounding_box = input_mesh.get_bounding_box();
+        std::array<Vec3f, 2> bounding_box = input_mesh.get_bounding_box();
         min_bound_ = bounding_box[0];
         max_bound_ = bounding_box[1];
     }
 
-    CellPos get_cell_pos(const Vec3::Vec3f& v) 
+    CellPos get_cell_pos(const Vec3f& v) 
     {
         return CellPos(floor((v.x() - min_bound_.x()) / cell_size_), floor((v.y() - min_bound_.y()) / cell_size_), floor((v.z() - min_bound_.z()) / cell_size_));
     }
 
-    void cluster_vertices()
-    {
-        auto& vertices = input_mesh_.get_vertices();
-        size_t vertices_amt = vertices.size();
-        for (size_t v = 0; v < vertices_amt; v++) 
-        {
-            CellPos cell_pos = get_cell_pos(vertices[v]);
-            cells_[cell_pos].add(vertices[v]);
-        }
-    }
+    void cluster_vertices();
 
-    void calc_new_vertices()
-    {
-        for (auto& [pos, data] : cells_) 
-        {
-            cell_to_new_ind_[pos] = new_vertices_.size();
-            Vec3::Vec3f average_v = data.calc_average_v();
-            new_vertices_.push_back(average_v);
-        }
-    }
+    void calc_new_vertices();
 
-    void old_new_v_match()
-    {
-        auto& vertices = input_mesh_.get_vertices();
-        size_t vertices_amt = vertices.size();
-        for (size_t v = 0; v < vertices_amt; v++) 
-        {
-            CellPos cell_pos = get_cell_pos(vertices[v]);
-            old_to_new_v_[v] = cell_to_new_ind_[cell_pos];
-        }
-    }
+    void old_new_v_match();
 
-    void triangulate()
-    {
-        auto& faces = input_mesh_.get_triangles();
-        int degenerateCount = 0;
-        
-        for (const auto& face : faces) 
-        {
-            int v0 = old_to_new_v_[face[0]];
-            int v1 = old_to_new_v_[face[1]];
-            int v2 = old_to_new_v_[face[2]];
-            
-            if (v0 != v1 && v1 != v2 && v0 != v2) 
-                new_faces_.push_back({v0, v1, v2});
-            else
-                degenerateCount++;
-        }
-    }
+    void triangulate();
 };
 }

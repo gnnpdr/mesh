@@ -3,6 +3,8 @@
 #include "algorithms/metrics.hpp"
 #include "algorithms/edge_collapse.hpp"
 #include "viewer/ray_tracer.hpp"
+#include "algorithms/simplifier_registry.hpp"
+#include "algorithms/adapters.hpp"
 
 #include <thread>
 #include <memory>
@@ -14,6 +16,7 @@
 #include <polyscope/curve_network.h>
 #include "polyscope/camera_parameters.h"
 #include <glm/gtc/matrix_transform.hpp>
+#include <iostream>
 
 namespace MeshViewer
 {
@@ -24,8 +27,6 @@ enum AlgorithmType
     EDGE_COLLAPSE,
     QUADRIC
 };
-
-using Vec3::Vec3f;
 
 struct SceneObject 
 {
@@ -72,32 +73,56 @@ class MeshViewer
     Vec3f light_pos_ = Vec3f(5.0f, 10.0f, 5.0f);
     bool show_load_dialog_ = false;
 
+
+    std::vector<std::unique_ptr<MeshSimplify::ISimplifier>> simplifiers_;
+    int current_simplifier_index_ = 0;
+
+    std::string fileDialogKey = "##FileDialog";
+    std::string newObjectFilePath;
+
 public:
 
     MeshViewer(const Mesh::Mesh& orig_mesh) : orig_mesh_(orig_mesh), current_mesh_(orig_mesh) 
     {
         update_detail_range();
         update_metrics();
+        reload_simplifiers();
+
     }
     MeshViewer(const Mesh::Mesh& orig_mesh, AlgorithmType algo) : orig_mesh_(orig_mesh), current_mesh_(orig_mesh), algo_(algo) 
     {
         update_detail_range();
         update_metrics();
+        reload_simplifiers();
     }
     MeshViewer(const Mesh::Mesh& orig_mesh, float detail_level) : orig_mesh_(orig_mesh), current_mesh_(orig_mesh), detail_level_(detail_level) 
     {
         update_detail_range();
         update_metrics();
+        reload_simplifiers();
     }
     MeshViewer(const Mesh::Mesh& orig_mesh, AlgorithmType algo, float detail_level) : orig_mesh_(orig_mesh), current_mesh_(orig_mesh), algo_(algo), detail_level_(detail_level) 
     {
         update_detail_range();
         update_metrics();
+        reload_simplifiers();
     }
 
-    MeshViewer() = default;
+
+    MeshViewer() 
+    {
+        reload_simplifiers(); 
+    }
     
     void start_viewer();
+
+    void reload_simplifiers() 
+    {
+        simplifiers_.clear();
+        auto& registry = MeshSimplify::SimplifierRegistry::instance();
+        for (const auto& name : registry.getNames())
+            simplifiers_.push_back(registry.create(name));
+    }
 
 private:
 
@@ -107,13 +132,16 @@ private:
     void detail_level_slider();
 
     inline void draw_ui() 
-    {
-        draw_simplification_ui();
-        
-        ImGui::Separator();
-        
-        draw_scene_ui();
+{
+    if (simplifiers_.empty()) {
+        ImGui::TextColored(ImVec4(1,0,0,1), "No algorithms loaded!");
+        return;
     }
+    
+    draw_simplification_ui();
+    ImGui::Separator();
+    draw_scene_ui();
+}
 
     void draw_simplification_ui();
     void load_file_button();

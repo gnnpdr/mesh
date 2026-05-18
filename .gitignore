@@ -2,3 +2,5 @@
 *.obj
 /polyscope
 include/lib/std_image_write.h
+eigen-3.4.0.tar.gz
+/eigen3

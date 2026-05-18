@@ -2,6 +2,9 @@
 
 #include "viewer/ray_tracer.hpp"
 #include <algorithm>
+#include <random> 
+#include <Eigen/Geometry>
+#include <Eigen/Dense>
 
 RayTracer::HitInfo RayTracer::RayTracer::intersect(const Ray& ray) const 
 {
@@ -29,9 +32,10 @@ RayTracer::HitInfo RayTracer::RayTracer::intersect(const Ray& ray) const
                     closest.objectId = objId;
                     closest.triangleId = t_ind;
                     
-                    // Вычисляем нормаль (интерполированная или просто нормаль треугольника)
-                    Vec3::Vec3f normal = (vertices[tri[1]] - vertices[tri[0]]).cross(
-                                         vertices[tri[2]] - vertices[tri[0]]).normalize();
+                    // Вычисляем нормаль
+                    Vec3f normal = (vertices[tri[1]] - vertices[tri[0]]).cross(
+                                         vertices[tri[2]] - vertices[tri[0]]).normalized();
+
                     closest.normal = normal;
                 }
             }
@@ -41,23 +45,23 @@ RayTracer::HitInfo RayTracer::RayTracer::intersect(const Ray& ray) const
     return closest;
 }
 
-bool RayTracer::RayTracer::intersect_triangle(const Ray& ray, const Vec3::Vec3f& v0, const Vec3::Vec3f& v1, const Vec3::Vec3f& v2, float& t, float& u, float& v) const 
+bool RayTracer::RayTracer::intersect_triangle(const Ray& ray, const Vec3f& v0, const Vec3f& v1, const Vec3f& v2, float& t, float& u, float& v) const 
 {
-    Vec3::Vec3f edge1 = v1 - v0;
-    Vec3::Vec3f edge2 = v2 - v0;
+    Vec3f edge1 = v1 - v0;
+    Vec3f edge2 = v2 - v0;
     
-    Vec3::Vec3f perp = ray.direction.cross(edge2);
+    Vec3f perp = ray.direction.cross(edge2);
     float ray_norm_projection = edge1.dot(perp);
     
     if (std::abs(ray_norm_projection) < 1e-6f) return false;
     
     float inv_det = 1.0f / ray_norm_projection;
-    Vec3::Vec3f t_place = ray.origin - v0;
+    Vec3f t_place = ray.origin - v0;
     u = inv_det * t_place.dot(perp);
     
     if (u < 0.0f || u > 1.0f) return false;
     
-    Vec3::Vec3f additional = t_place.cross(edge1);
+    Vec3f additional = t_place.cross(edge1);
     v = inv_det * ray.direction.dot(additional);
     
     if (v < 0.0f || u + v > 1.0f) return false;
@@ -66,35 +70,35 @@ bool RayTracer::RayTracer::intersect_triangle(const Ray& ray, const Vec3::Vec3f&
     return t > 1e-6f;
 }
 
-bool RayTracer::RayTracer::is_in_shadow(const Vec3::Vec3f& point, const Vec3::Vec3f& lightDir) const 
+bool RayTracer::RayTracer::is_in_shadow(const Vec3f& point, const Vec3f& lightDir) const 
 {
     Ray shadow_ray(point + lightDir * 0.001f, lightDir);
     HitInfo hit = intersect(shadow_ray);
     return hit.hit;
 }
 
-Vec3::Vec3f RayTracer::RayTracer::compute_color(const HitInfo& hit, const Ray& ray) const 
+Vec3f RayTracer::RayTracer::compute_color(const HitInfo& hit, const Ray& ray) const 
 {
     if (!hit.hit)
         return settings_.background_color;
     
-    Vec3::Vec3f color = Vec3::Vec3f(0.1f, 0.1f, 0.1f);
+    Vec3f color = Vec3f(0.1f, 0.1f, 0.1f);
     
-    Vec3::Vec3f light_dir = (settings_.light_pos - hit.point).normalize();
+    Vec3f light_dir = (settings_.light_pos - hit.point).normalized();
     
     if (!is_in_shadow(hit.point, light_dir)) 
     {
         float diff = std::max(0.0f, hit.normal.dot(light_dir));
         color = color + settings_.light_color * diff * settings_.light_intensity;
         
-        Vec3::Vec3f view_dir = (ray.origin - hit.point).normalize();
-        Vec3::Vec3f reflect_dir = (light_dir * (-2.0f * hit.normal.dot(light_dir)) + hit.normal);
-        reflect_dir = reflect_dir.normalize();
+        Vec3f view_dir = (ray.origin - hit.point).normalized();
+        Vec3f reflect_dir = (light_dir * (-2.0f * hit.normal.dot(light_dir)) + hit.normal);
+        reflect_dir = reflect_dir.normalized();
         float spec = std::pow(std::max(0.0f, view_dir.dot(reflect_dir)), 32);
         color = color + settings_.light_color * spec * 0.5f;
     }
     
-    Vec3::Vec3f color_limited(std::min(1.0f, color.x()), std::min(1.0f, color.y()), std::min(1.0f, color.z()));
+    Vec3f color_limited(std::min(1.0f, color.x()), std::min(1.0f, color.y()), std::min(1.0f, color.z()));
     
     return color_limited;
 }
@@ -106,39 +110,59 @@ void RayTracer::RayTracer::render(const std::string& output_filename)
                            group_bounding_box[1].y() - group_bounding_box[0].y(), 
                            group_bounding_box[1].z() - group_bounding_box[0].z()});
     
-    std::vector<Vec3::Vec3f> framebuffer(settings_.width * settings_.height);
+    std::vector<Vec3f> framebuffer(settings_.width * settings_.height);
     
-    Vec3::Vec3f camera_pos(0.0f, 0.0f, -5.0f);
-    Vec3::Vec3f camera_target(0.0f, 0.0f, 0.0f);
+    Vec3f camera_pos(0.0f, 0.0f, -5.0f);
+    Vec3f camera_target(0.0f, 0.0f, 0.0f);
     float fov = 45.0f;
     float aspect = (float)settings_.width / settings_.height;
     float tan_half_fov = tanf(fov * 3.14159f / 360.0f);
     
-    const Vec3::Vec3f& origin = settings_.camera_position;
-    const Vec3::Vec3f& target = settings_.camera_target;
-    const Vec3::Vec3f up = settings_.camera_up;
+    const Vec3f& origin = settings_.camera_position;
+    const Vec3f& target = settings_.camera_target;
+    const Vec3f up = settings_.camera_up;
     float fov_rad = settings_.vertical_fov_deg * 3.14159f / 180.0f;
 
-    Vec3::Vec3f forward = (target - origin).normalize();
-    Vec3::Vec3f right = forward.cross(up).normalize();
-    Vec3::Vec3f real_up = right.cross(forward);
+    Vec3f forward = (target - origin).normalized();
+    Vec3f right = forward.cross(up).normalized();
+    Vec3f real_up = right.cross(forward);
+
+    int sqrt_samples = (int)std::sqrt(settings_.samples_per_pixel);
+    int total_samples = sqrt_samples * sqrt_samples;
     
-    #pragma omp parallel for
+    // #pragma omp parallel for
+    #pragma omp parallel for schedule(dynamic, 1)
     for (int y = 0; y < settings_.height; y++) 
     {
+        static thread_local std::mt19937 rng(std::random_device{}());
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
         for (int x = 0; x < settings_.width; x++) 
         {
-            float u = (2.0f * (x + 0.5f) / settings_.width - 1.0f) * tan(fov_rad / 2.0f) * aspect;
-            float v = (1.0f - 2.0f * (y + 0.5f) / settings_.height) * tan(fov_rad / 2.0f);
+            Vec3f color(0.0f, 0.0f, 0.0f);
             
-            Vec3::Vec3f direction = (forward + right * u + real_up * v).normalize();
-            direction = direction.normalize();
-            Ray ray(origin, direction);
-
-            HitInfo hit = intersect(ray);
-            framebuffer[y * settings_.width + x] = compute_color(hit, ray);
+            for (int sy = 0; sy < sqrt_samples; sy++) 
+            {
+                for (int sx = 0; sx < sqrt_samples; sx++) 
+                {
+                    float offset_x = dist(rng);
+                    float offset_y = dist(rng);
+                    
+                    float u = (2.0f * (x + (sx + offset_x) / sqrt_samples) / settings_.width - 1.0f) * tan_half_fov * aspect;
+                    float v = (1.0f - 2.0f * (y + (sy + offset_y) / sqrt_samples) / settings_.height) * tan_half_fov;
+                    
+                    Vec3f direction = (forward + right * u + real_up * v).normalized();
+                    Ray ray(origin, direction);
+                    
+                    HitInfo hit = intersect(ray);
+                    color = color + compute_color(hit, ray);
+                }
+            }
+            
+            framebuffer[y * settings_.width + x] = color / (float)total_samples;
         }
         
+        #pragma omp critical
         if (y % 100 == 0)
             std::cout << "Progress: " << (y * 100 / settings_.height) << "%" << std::endl;
     }
@@ -147,7 +171,9 @@ void RayTracer::RayTracer::render(const std::string& output_filename)
     std::cout << "Ray tracing completed! Saved to " << output_filename << std::endl;
 }
 
-void RayTracer::RayTracer::save2png(const std::string& filename, const std::vector<Vec3::Vec3f>& framebuffer,int width, int height) const 
+        
+
+void RayTracer::RayTracer::save2png(const std::string& filename, const std::vector<Vec3f>& framebuffer,int width, int height) const 
 {
     std::vector<unsigned char> pixels(width * height * 3);
     

@@ -4,6 +4,7 @@
 
 namespace MeshOBJConverter
 {
+
 class MeshOBJConverter
 {
     Mesh::Mesh mesh_;
@@ -14,23 +15,17 @@ public:
 
     void convert()
     {
-        //открыть файл
         std::ofstream file("new_mesh.obj");
         if (!file.is_open()) 
-        {
-            std::cerr << "we cant do it, sir, file not opened, sir" << std::endl;
-            return;
-        }
+            throw std::runtime_error("Failed to open file: new_mesh.obj");
 
         file << "#woooow, your mesh is sooo big\n#but i think i can handle it\n" << std::endl;
 
-        //выдать в него все вершины
         auto& vertices = mesh_.get_vertices();
         file << "#sir, your vertices, sir" << std::endl;
         for (const auto& v : vertices)
             file << "v " << v.x() << " " << v.y() << " " << v.z() << std::endl;
         
-        //выдать в него все треугольники, увеличивая индекс на 1
         file << std::endl;
         auto& tringles = mesh_.get_triangles();
         file << "#sir, your triangles, sir" << std::endl;

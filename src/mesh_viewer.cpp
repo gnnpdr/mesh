@@ -11,7 +11,7 @@ void MeshViewer::MeshViewer::start_viewer()
         original_obj->mesh = orig_mesh_;
         original_obj->orig_mesh = orig_mesh_;
         original_obj->is_original = true;
-        original_obj->color = Vec3::Vec3f(0.8f, 0.8f, 0.8f);
+        original_obj->color = Vec3f(0.8f, 0.8f, 0.8f);
 
         register_object(original_obj.get());
         selected_object_ = original_obj.get();
@@ -104,71 +104,57 @@ void MeshViewer::MeshViewer::render_raytraced(const std::string& photo_name)
 void MeshViewer::MeshViewer::simplify_and_update() 
 {
     if (!selected_object_) return;
-    Mesh::Mesh result;
     
     const Mesh::Mesh& source_mesh = selected_object_->orig_mesh;
-    switch(algo_) 
+    Mesh::Mesh result;
+    
+    if (current_simplifier_index_ >= 0 && current_simplifier_index_ < simplifiers_.size()) 
     {
-        case VERTEX_CLUSTER: 
-        {
-            algo_name_ = "Vertex cluster";
-            VertexCluster::VertexCluster simplifier(source_mesh, detail_level_);
-            result = simplifier.simplify();
-            break;
-        }
-        case EDGE_COLLAPSE: 
-        {
-            algo_name_ = "Edge collapse";
-            Mesh::EdgeMesh edge_mesh(source_mesh);
-            EdgeCollapse::SimpleEdgeCollapse simplifier(edge_mesh, (1 - detail_level_));
-            result = simplifier.simplify();
-            break;
-        }
-        case QUADRIC: 
-        {
-            algo_name_ = "Quadric";
-            Mesh::EdgeMesh edge_mesh(source_mesh);
-            EdgeCollapse::QuadricEdgeCollapse simplifier(edge_mesh, (1 - detail_level_));
-            result = simplifier.simplify();
-            break;
-        }
-        default:
-            result = source_mesh;
+        result = simplifiers_[current_simplifier_index_]->simplify(source_mesh, detail_level_);
+        algo_name_ = simplifiers_[current_simplifier_index_]->get_name();
+    } 
+    else 
+    {
+        result = source_mesh;
+        algo_name_ = "None";
     }
-    // Обновляем mesh выбранного объекта
+    
     selected_object_->mesh = result;
     selected_object_->orig_mesh = source_mesh;
     selected_object_->detail_level = detail_level_;
     selected_object_->current_algo = algo_;
-    // Перерегистрируем объект в Polyscope
+    
     register_object(selected_object_);
     update_metrics();
 }
 
 void MeshViewer::MeshViewer::draw_simplification_ui() 
 {
-    if (ImGui::Button("Vertex Cluster")) 
+
+    static int frame = 0;
+    if (frame++ % 60 == 0)
+        //std::cout << "draw UI, simplifiers size: " << simplifiers_.size() << std::endl;
+    
+    if (simplifiers_.empty()) 
     {
-        algo_ = VERTEX_CLUSTER;
-        algo_name_ = "Vertex cluster";
-        simplify_and_update();
-        update_metrics();
+        ImGui::TextColored(ImVec4(1,0,0,1), "No algorithms loaded!");
+        ImGui::Text("Check console for errors");
+        return;
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Edge Collapse")) 
+    
+    for (int i = 0; i < simplifiers_.size(); i++) 
     {
-        algo_ = EDGE_COLLAPSE;
-        algo_name_ = "Edge Collapse";
-        simplify_and_update();
-        update_metrics();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Quadric")) 
-    {
-        algo_ = QUADRIC;
-        algo_name_ = "Quadric";
-        simplify_and_update();
-        update_metrics();
+        if (ImGui::Button(simplifiers_[i]->get_name().c_str())) 
+        {
+            current_simplifier_index_ = i;
+            algo_name_ = simplifiers_[i]->get_name();
+            simplify_and_update();
+            update_metrics();
+        }
+        if (i < simplifiers_.size() - 1) 
+        {
+            ImGui::SameLine();
+        }
     }
     
     detail_level_slider();
@@ -217,6 +203,7 @@ void MeshViewer::MeshViewer::detail_level_slider()
         last_is_dragging = is_dragging;
     }
 }
+
 
 void MeshViewer::MeshViewer::draw_scene_ui() 
 {
@@ -371,6 +358,7 @@ void MeshViewer::MeshViewer::add_button()
     }
 }
 
+
 void MeshViewer::MeshViewer::remove_button()
 {
     if (ImGui::Button("Remove Selected") && selected_object_ && !selected_object_->is_original) 
@@ -438,6 +426,7 @@ void MeshViewer::MeshViewer::ray_trace_button()
     }
 }
 
+
 void MeshViewer::MeshViewer::tune_properties()
 {
     if (selected_object_) 
@@ -447,14 +436,14 @@ void MeshViewer::MeshViewer::tune_properties()
         float color[3] = {selected_object_->color.x(), selected_object_->color.y(), selected_object_->color.z()};
         if (ImGui::ColorEdit3("Color", color)) 
         {
-            selected_object_->color = Vec3::Vec3f(color[0], color[1], color[2]);
+            selected_object_->color = Vec3f(color[0], color[1], color[2]);
             if (selected_object_->ps_handle)
                 selected_object_->ps_handle->setSurfaceColor(glm::vec3(color[0], color[1], color[2]));
         }
         float pos[3] = {selected_object_->position.x(), selected_object_->position.y(), selected_object_->position.z()};
         if (ImGui::DragFloat3("Position", pos, 0.1f)) 
         {
-            selected_object_->position = Vec3::Vec3f(pos[0], pos[1], pos[2]);
+            selected_object_->position = Vec3f(pos[0], pos[1], pos[2]);
             apply_transform(selected_object_);
         }
         bool visible = selected_object_->visible;

@@ -3,6 +3,7 @@
 #include <limits>
 
 #include "mesh/mesh.hpp"
+#include <iostream>
 
 namespace Metrics
 {
