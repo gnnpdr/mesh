@@ -39,7 +39,6 @@ set(HEADERS
     include/algorithms/adapters.hpp
     include/algorithms/simplifier_interface.hpp
     include/algorithms/simplifier_registry.hpp
-    include/algorithms/register_algorithms.hpp
     include/algorithms/new.hpp
 )
 

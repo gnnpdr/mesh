@@ -1,23 +1,41 @@
+/**
+ * @file obj_converter.hpp
+ * @brief Конвертер полигональных сеток в формат OBJ
+ * 
+ * Позволяет сохранить Mesh в текстовый OBJ файл
+ * Формат:
+ * v x y z — вершина
+ * f i j k — треугольник (индексы начинаются с 1)
+ */
+
 #pragma once
 #include "mesh/mesh.hpp"
 #include <fstream>
 
 namespace MeshOBJConverter
 {
-
+/**
+ * @brief Класс для сохранения сетки в OBJ файл
+ * 
+ * @note Индексы треугольников автоматически преобразуются из 0-индексации (внутреннее представление) в 1-индексацию (формат OBJ)
+ */
 class MeshOBJConverter
 {
     Mesh::Mesh mesh_;
 
 public:
 
-    MeshOBJConverter(const Mesh::Mesh& mesh) : mesh_(mesh) {}
-
-    void convert()
+    MeshOBJConverter(const Mesh::Mesh& mesh) : mesh_(mesh) 
     {
-        std::ofstream file("new_mesh.obj");
+        if (mesh.is_empty())
+            throw std::invalid_argument("MeshOBJConverter: mesh is empty, nothing to save");
+    }
+
+    void convert(const std::string& filename = "new_mesh.obj") const
+    {
+        std::ofstream file(filename);
         if (!file.is_open()) 
-            throw std::runtime_error("Failed to open file: new_mesh.obj");
+             throw std::runtime_error("MeshOBJConverter: failed to open file '" + filename + "'");
 
         file << "#woooow, your mesh is sooo big\n#but i think i can handle it\n" << std::endl;
 
@@ -38,4 +56,5 @@ public:
         file.close(); 
     }
 };
+
 }

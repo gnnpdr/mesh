@@ -7,7 +7,6 @@
 namespace MeshSimplify 
 {
 
-
 class SimplifierRegistry 
 {
 public:
@@ -19,7 +18,7 @@ public:
         return registry;
     }
    
-    void registerSimplifier(const std::string& name, Creator creator) 
+    void register_simplifier(const std::string& name, Creator creator) 
     {
         creators_[name] = std::move(creator);
     }
@@ -34,7 +33,7 @@ public:
         return nullptr;
     }
 
-    std::vector<std::string> getNames() const 
+    std::vector<std::string> get_names() const 
     {
         std::vector<std::string> names;
         names.reserve(creators_.size());
@@ -67,7 +66,7 @@ private:
     namespace { \
         struct ClassName##_Registrar { \
             ClassName##_Registrar() { \
-                MeshSimplify::SimplifierRegistry::instance().registerSimplifier( \
+                MeshSimplify::SimplifierRegistry::instance().register_simplifier( \
                     DisplayName, []() { return std::make_unique<ClassName>(); }); \
             } \
         }; \
